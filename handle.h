@@ -39,11 +39,11 @@ using namespace std;
 class Site: public Object
 {
 public:
+	short cellID;
+    short visited_times;
 	double x, y;
 	double peak_conc, curr_conc;
 	double variance_x, variance_y;
-    short cellID;
-    short visited_times;
     double over_thr_radius;
 	Site()
 	{
@@ -52,9 +52,31 @@ public:
 		curr_conc=0;
 		variance_x=0;
 		variance_y=0;
-		over_thr_radius = sqrt(x*x+y*y);
+		over_thr_radius = 0; //= sqrt(x*x+y*y);
 	};
 	~Site();
+	double sprayVol(double c_h, double c_l);
+	double dustVol(void);
+};
+class UAV: public Node
+{
+public:
+	short uav_id, home_cell, visit_cell;
+	double x, y;
+	double max_vol, ground_speed, curr_vol, curr_energy;
+	double sensed_stat = 0;
+	double max_energy = 999999;
+	double flied_distance = 0;
+	double data_load;
+	UAV()
+	{
+	};
+	~UAV()
+	{
+	};
+	double distanceTo(Vector p);
+	double energyTo(Vector p);
+	void handleSite(Site &site, double to_conc);
 };
 map<short, Site*>all_site_list;
 map<short, Site*>cell_site_list[numCell];
