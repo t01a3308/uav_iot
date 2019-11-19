@@ -189,7 +189,9 @@ void SetupUavPosition(int cellId)
 }
 void TSP(int cellId, int uavId)
 {
-  //Calculate distance matrix for TSP
+  /* Calculate distance matrix for TSP. Sites to visit are determined 
+  according to algorithm "back tracking" */
+
   int n = taskToDo[cellId][uavId].size();
   if(n == 0)
   {
@@ -244,10 +246,12 @@ void TSP(int cellId, int uavId)
 }
 int check(int v, int k)
 {
-  return !appear[v];
+  return !appear[v]; //still not visited by UAV in TRY
 }
 void solution(int n)
 {
+	/* check if the current path is shorter than the previous, given
+	the same sites */
   double rs = result + distance[x[n]][0];
   //std::cout<<"rs = "<<rs<<std::endl;
   if(rs < MIN)
@@ -261,13 +265,14 @@ void solution(int n)
 }
 void TRY(int k, int n)
 {
+	/*k: next site to visit; n: total sites */
   for(int v = 1; v <= n; v++)
   {   
-    if(check(v, k))
+    if(check(v, k)) //is v still not visited?
     {     
-      x[k] = v;
+      x[k] = v; // store list of sites to visit
       result += distance[x[k-1]][x[k]];
-      appear[v] = 1;
+      appear[v] = 1; // yes, already visited
       if(k == n )
       {
         solution(n);

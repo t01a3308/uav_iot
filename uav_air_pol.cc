@@ -48,6 +48,7 @@ std::map<Ptr<Node>, double> sensorData[numCell]; // all data
 std::map<Ptr<Node>, double> highData[numCell]; // all high data
 std::map<Ptr<Node>, double> taskToDo[numCell][numUav]; // all tasks of a uav
 std::queue<std::map<Ptr<Node>, double>> q[numCell][numUav];// sequence to do tasks
+
 //variable to solve TSP
 int appear[maxTaskPerUav+1];
 double distance[maxTaskPerUav+1][maxTaskPerUav+1];
@@ -78,6 +79,15 @@ int main()
     GenerateSensorData(i);
     Execute(i);
   }
+  /* For upcast prototype
+  Ptr<UAV> uav_obj = CreateObject<UAV>();
+  NodeContainer c;
+  c.Add(uav_obj);
+  MobilityHelper m;
+  m.SetMobilityModel("ns3::ConstantVelocityMobilityModel");
+  m.Install(uav_obj);
+  uav_obj->GetLocalTime();
+  */
     
   anim = new AnimationInterface("city.xml");
   SetPosition(uav[0].Get(0), Vector(0.0,0.0,0.0));
@@ -86,6 +96,7 @@ int main()
   Simulator::Stop(Seconds(50));
   Simulator::Run();
   Simulator::Destroy();
+  
 }
 
 

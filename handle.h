@@ -36,8 +36,11 @@
 
 using namespace ns3;
 using namespace std;
-class Site: public Object
+class Site: public Object 
 {
+	/*This class defines positions that measurements are available 
+	(provided by sensors or UAVs traversing). UAVs may spray 
+	chemicals theredown */
 public:
 	short cellID;
     short visited_times;
@@ -72,6 +75,46 @@ public:
 	{
 	};
 	~UAV()
+	{
+	};
+	double distanceTo(Vector p);
+	double energyTo(Vector p);
+	void handleSite(Site &site, double to_conc);
+};
+class SENSOR: public Node
+{
+public:
+	short uav_id, home_cell, visit_cell;
+	double x, y;
+	double max_vol, ground_speed, curr_vol, curr_energy;
+	double sensed_stat = 0;
+	double max_energy = 999999;
+	double flied_distance = 0;
+	double data_load;
+	SENSOR()
+	{
+	};
+	~SENSOR()
+	{
+	};
+	double distanceTo(Vector p);
+	double energyTo(Vector p);
+	void handleSite(Site &site, double to_conc);
+};
+class GW: public Node
+{
+public:
+	short uav_id, home_cell, visit_cell;
+	double x, y;
+	double max_vol, ground_speed, curr_vol, curr_energy;
+	double sensed_stat = 0;
+	double max_energy = 999999;
+	double flied_distance = 0;
+	double data_load;
+	GW()
+	{
+	};
+	~GW()
 	{
 	};
 	double distanceTo(Vector p);
