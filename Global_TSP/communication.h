@@ -36,27 +36,22 @@
 using namespace ns3;
 
 extern TypeId tid;
-extern double X[maxNumCell], Y[maxNumCell];//cell center 's position
-extern NodeContainer uav[numCell], sensor[numCell], gw[numCell], allNodes[numCell];
-extern std::map<Ptr<Node>, double> sensorData[numCell]; // all data
-extern std::map<Ptr<Node>, double> highData[numCell]; // all high data
-extern std::map<Ptr<Node>, double> taskToDo[numCell][numUav]; // all tasks of a uav
-extern std::queue<std::map<Ptr<Node>, double>> q[numCell][numUav];// sequence to do tasks
 
 void SetupCommunication(int cellId);
 void SetupApplication(int cellId);
-void GenerateSensorData(int cellId);
+
 void ReceivePacket (Ptr<Socket> socket);
 void GenerateTraffic (Ptr<Socket> socket, uint32_t pktSize, uint32_t pktCount, Time pktInterval );
 void SendPacket(Ptr<Node> src, Ptr<Node> dst, int numPkt, int pktSize, double interval);
 
 void SetupCommunication(int cellId)
 {
+  std::cout<<"set up communication cell "<<cellId<<std::endl;
   std::string phyMode ("OfdmRate6MbpsBW10MHz"); 
   YansWifiPhyHelper wifiPhy =  YansWifiPhyHelper::Default ();
   wifiPhy.Set ("RxGain", DoubleValue (0) );
-  wifiPhy.Set ("TxPowerStart", DoubleValue (3000));
-  wifiPhy.Set ("TxPowerEnd", DoubleValue (3000));
+  wifiPhy.Set ("TxPowerStart", DoubleValue (30));
+  wifiPhy.Set ("TxPowerEnd", DoubleValue (30));
   YansWifiChannelHelper wifiChannel = YansWifiChannelHelper::Default ();
   Ptr<YansWifiChannel> channel = wifiChannel.Create ();
   wifiPhy.SetChannel (channel);
@@ -76,7 +71,7 @@ void SetupCommunication(int cellId)
   listRouting.Add (staticRouting, 0);
   listRouting.Add (aodv, 10);
   InternetStackHelper internet;
-  internet.SetRoutingHelper(listRouting);
+  //internet.SetRoutingHelper(listRouting);
   internet.Install (allNodes[cellId]);
   Ipv4AddressHelper ipv4Address;
   std::string str = "10."+std::to_string(cellId+1)+".0.0";
@@ -85,25 +80,26 @@ void SetupCommunication(int cellId)
 }
 void SetupApplication(int cellId)
 {
+  std::cout<<"set up apps cell "<<cellId<<std::endl;
   Ptr<Socket> *sinkUav, *sinkGw, *sinkSensor;
-  sinkUav = new Ptr<Socket>[numUav];
-  sinkSensor = new Ptr<Socket>[numSensor];
-  sinkGw = new Ptr<Socket> [numGw];
-  for(int i = 0; i < numUav; i++)
+  sinkUav = new Ptr<Socket>[NUM_UAV];
+  sinkSensor = new Ptr<Socket>[NUM_SENSOR];
+  sinkGw = new Ptr<Socket> [NUM_GW ];
+  for(int i = 0; i < NUM_UAV; i++)
   {
     sinkUav[i] = Socket::CreateSocket (uav[cellId].Get (i), tid);
       InetSocketAddress local = InetSocketAddress (Ipv4Address::GetAny (), 80);
       sinkUav[i] ->Bind (local);
       sinkUav[i] ->SetRecvCallback (MakeCallback (&ReceivePacket));
   }
-  for(int i = 0; i < numSensor; i++)
+  for(int i = 0; i < NUM_SENSOR; i++)
   {
     sinkSensor[i] = Socket::CreateSocket (sensor[cellId].Get (i), tid);
       InetSocketAddress local = InetSocketAddress (Ipv4Address::GetAny (), 80);
       sinkSensor[i] ->Bind (local);
       sinkSensor[i] ->SetRecvCallback (MakeCallback (&ReceivePacket));
   }
-  for(int i = 0; i < numGw; i++)
+  for(int i = 0; i < NUM_GW ; i++)
   {
     sinkGw[i] = Socket::CreateSocket (gw[cellId].Get (i), tid);
       InetSocketAddress local = InetSocketAddress (Ipv4Address::GetAny (), 80);
@@ -111,19 +107,7 @@ void SetupApplication(int cellId)
       sinkGw[i] ->SetRecvCallback (MakeCallback (&ReceivePacket));
   }
 }
-void GenerateSensorData(int cellId)
-{
-  Ptr<UniformRandomVariable> rd = CreateObject<UniformRandomVariable>();
-  for(int i = 0; i < numSensor; i++)
-  {
-    double data = rd -> GetValue(minValue, maxValue);
-    sensorData[cellId][sensor[cellId].Get(i)] = data;
-    if(data > threshold)
-    {
-      highData[cellId][sensor[cellId].Get(i)] = data;
-    }
-  }
-}
+
 void ReceivePacket (Ptr<Socket> socket)
 {
   while (socket->Recv ())

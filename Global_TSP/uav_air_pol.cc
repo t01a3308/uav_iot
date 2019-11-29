@@ -33,67 +33,62 @@
 #include <math.h>
 /*Added header files*/
 #include "kinematic.h"
-#include "handle.h"
 #include "macro_param.h"
 #include "communication.h"
-#include "misc.h"
 
 using namespace ns3;
 
 AnimationInterface *anim = 0;
 TypeId tid = TypeId::LookupByName ("ns3::UdpSocketFactory");
-double X[maxNumCell], Y[maxNumCell];//cell center 's position
-NodeContainer uav[numCell], sensor[numCell], gw[numCell], allNodes[numCell];
-std::map<Ptr<Node>, double> sensorData[numCell]; // all data
-std::map<Ptr<Node>, double> highData[numCell]; // all high data
-std::map<Ptr<Node>, double> taskToDo[numCell][numUav]; // all tasks of a uav
-std::queue<std::map<Ptr<Node>, double>> q[numCell][numUav];// sequence to do tasks
-
-//variable to solve TSP
-int appear[maxTaskPerUav+1];
-double distance[maxTaskPerUav+1][maxTaskPerUav+1];
-int x[maxTaskPerUav+1];
-int path[maxTaskPerUav+1];
-double dmin = 999999;
-double result = 0;
-double MIN = 9999999;
-  //
-int uavNext[numCell];
+double X[MAX_NUM_CELL], Y[MAX_NUM_CELL];//cell center 's position
+UAVContainer uav[NUM_CELL];
+SensorContainer sensor[NUM_CELL];
+GwContainer gw[NUM_CELL];
+NodeContainer allNodes[NUM_CELL];
+std::map<Ptr<Node>, double> sensorData[NUM_CELL]; // all data
+//std::map<Ptr<Node>, double> highData[NUM_CELL]; // all high data
+//std::map<Ptr<Node>, double> taskToDo[NUM_CELL][NUM_UAV]; // all tasks of a uav
+//std::queue<std::map<Ptr<Node>, double>> q[NUM_CELL][NUM_UAV];// sequence to do tasks
  
 int main()
 { 
+
+ // LogComponentEnable ("MobilityHelper", LOG_LEVEL_DEBUG);
   RngSeedManager::SetSeed (3);  // Changes seed from default of 1 to 3
   RngSeedManager::SetRun (7);   // Changes run number from default of 1 to 7  
   CalculateCellCenter();
-  for(int i = 0; i < numCell; i++)
+  for(int i = 0; i < NUM_CELL; i++)
   {
-    uavNext[i] = 0;
-    uav[i].Create(numUav);
-    sensor[i].Create(numSensor);
-    gw[i].Create(numGw);
+  	// uav[i].Create(NUM_UAV);
+   //  sensor[i].Create(NUM_SENSOR);   
+   //  gw[i].Create(NUM_GW );
+  	for(int j = 0; j < NUM_UAV; j++)
+    {
+      Ptr<UAV> u = CreateObject<UAV>();
+      uav[i].Add(u);
+    }
+    for(int j = 0; j < NUM_SENSOR; j++)
+    {
+      Ptr<SENSOR> ss = CreateObject<SENSOR>();
+      sensor[i].Add(ss);
+    }   
+    for(int j = 0; j < NUM_GW; j++)
+    {
+      Ptr<GW> g = CreateObject<GW>();
+      gw[i].Add(g);
+    }
     SetupSensorPosition(i);
     SetupUavPosition(i);
     SetupGwPosition(i);     
     SetupCommunication(i);
     SetupApplication(i);
     GenerateSensorData(i);
+    TSP(i);
     Execute(i);
   }
-  /* For upcast prototype
-  Ptr<UAV> uav_obj = CreateObject<UAV>();
-  NodeContainer c;
-  c.Add(uav_obj);
-  MobilityHelper m;
-  m.SetMobilityModel("ns3::ConstantVelocityMobilityModel");
-  m.Install(uav_obj);
-  uav_obj->GetLocalTime();
-  */
-    
-  anim = new AnimationInterface("city.xml");
-  SetPosition(uav[0].Get(0), Vector(0.0,0.0,0.0));
-  SetPosition(uav[0].Get(2), Vector(1000.0,0.0,0.0));
-  Simulator::Schedule(Seconds(35), &SendPacket, uav[0].Get(0), uav[0].Get(2), 3, 256, 2);
-  Simulator::Stop(Seconds(50));
+ // Simulator::Schedule(Seconds(35), &SendPacket, uav[0].Get(0), uav[0].Get(2), 3, 256, 2);
+  //Simulator::Stop(Seconds(50));
+  anim = new AnimationInterface("uav_air_pol.xml");
   Simulator::Run();
   Simulator::Destroy();
   
