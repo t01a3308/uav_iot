@@ -49,7 +49,7 @@ std::map<Ptr<Node>, double> sensorData[NUM_CELL]; // all data
 //std::map<Ptr<Node>, double> highData[NUM_CELL]; // all high data
 //std::map<Ptr<Node>, double> taskToDo[NUM_CELL][NUM_UAV]; // all tasks of a uav
 //std::queue<std::map<Ptr<Node>, double>> q[NUM_CELL][NUM_UAV];// sequence to do tasks
- 
+double dataLoad = 0;
 int main()
 { 
 
@@ -82,6 +82,8 @@ int main()
     SetupGwPosition(i);     
     SetupCommunication(i);
     SetupApplication(i);
+    UavSend(i);
+    SensorSend(i);
     GenerateSensorData(i);
     TSP(i);
     Execute(i);

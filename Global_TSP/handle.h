@@ -42,14 +42,16 @@ class SITE: public Object
 	(provided by sensors or UAVs traversing). UAVs may spray 
 	chemicals theredown */
 private:
-	//short cellID;
+	
 	Vector position;
     double visited_time; //second	
 	double resource;
 	double urgency;
 	double w;
 	double utility;
+	int id;
 public:
+	static int cnt;
 	SITE(Vector p, double data_value);
 	~SITE()
 	{
@@ -60,9 +62,11 @@ public:
 	double GetResource();
 	double GetUrgency();
 	double GetUtility();
+	int GetId();
 	//double sprayVol(double c_h, double c_l);
 	//double dustVol(void);
 };
+int SITE::cnt = 0;
 SITE::SITE(Vector p, double data_value)
 {
 	Ptr<UniformRandomVariable> rd = CreateObject<UniformRandomVariable>();
@@ -72,6 +76,7 @@ SITE::SITE(Vector p, double data_value)
 	urgency = rd -> GetValue(MIN_URGENCY, MAX_URGENCY);
 	w = rd -> GetValue(1.0, 2.0);
 	utility = K_FACTOR * w * resource * urgency;
+	id = cnt++;
 }
 Vector SITE::GetSitePosition()
 {
@@ -93,6 +98,10 @@ double SITE::GetUtility()
 {
 	return utility;
 }
+int SITE::GetId()
+{
+	return id;
+}
 //
 class SiteList
 {
@@ -111,6 +120,7 @@ public:
 	Ptr<SITE> Get(uint32_t i);
 	uint32_t GetSize();
 	double GetUtility();
+	void Clear();
 };
 void SiteList::Add(Ptr<SITE> site)
 {
@@ -133,6 +143,10 @@ double SiteList::GetUtility()
 	}
 	return u;
 }
+void SiteList::Clear()
+{
+	m_list.clear();
+}
 class UAV: public Node
 {
 private:
@@ -154,6 +168,7 @@ public:
 	void UpdateFliedDistance(double distance);
 	double GetConsumedEnergy();
 	double GetFliedDistance();
+	
 	//void handleSite(Site &site, double to_conc);
 };
 void UAV::UpdateEnergy(double new_power)
@@ -175,6 +190,7 @@ double UAV::GetFliedDistance()
 {
 	return flied_distance;
 }
+
 //
 class SENSOR: public Node
 {
@@ -191,10 +207,8 @@ public:
 	~SENSOR()
 	{
 	};
-	double distanceTo(Vector p);
-	double energyTo(Vector p);
-	//void handleSite(Site &site, double to_conc);
 };
+
 class GW: public Node
 {
 private:
@@ -250,6 +264,7 @@ double UAVContainer::CalculateFliedDistance()
 	}
 	return distance;
 }
+
 //
 class SensorContainer: public NodeContainer
 {
@@ -267,6 +282,7 @@ Ptr<SENSOR> SensorContainer::GetSensor(uint32_t i)
 {
 	return DynamicCast<SENSOR, Node>(this->Get(i));
 }
+
 //
 class GwContainer: public NodeContainer
 {

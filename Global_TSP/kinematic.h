@@ -35,6 +35,7 @@
 #include "handle.h"
 using namespace ns3;
 
+extern double dataLoad;
 extern double X[MAX_NUM_CELL], Y[MAX_NUM_CELL];//cell center 's position
 extern UAVContainer uav[NUM_CELL];
 extern SensorContainer sensor[NUM_CELL];
@@ -418,6 +419,6 @@ void StopSimulation()
   std::cout<<"Energy: "<<energy/1000000.0<<" MJ"<<std::endl;
   std::cout<<"Flied distance: "<<fliedDistance/1000.0<<" km"<<std::endl;
   std::cout<<"Benefit: "<<utility - cost<<std::endl;
-  std::cout<<"Data: "<<std::endl;
+  std::cout<<"Data: "<<dataLoad/1024.0/1024.0<<" MB"<<std::endl;
   Simulator::Stop();
 }

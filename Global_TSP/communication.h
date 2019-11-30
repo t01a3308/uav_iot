@@ -36,14 +36,14 @@
 using namespace ns3;
 
 extern TypeId tid;
-
+extern double dataLoad;
 void SetupCommunication(int cellId);
 void SetupApplication(int cellId);
-
 void ReceivePacket (Ptr<Socket> socket);
 void GenerateTraffic (Ptr<Socket> socket, uint32_t pktSize, uint32_t pktCount, Time pktInterval );
 void SendPacket(Ptr<Node> src, Ptr<Node> dst, int numPkt, int pktSize, double interval);
-
+void UavSend(int cellId);
+void SensorSend(int cellId);
 void SetupCommunication(int cellId)
 {
   std::cout<<"set up communication cell "<<cellId<<std::endl;
@@ -88,54 +88,72 @@ void SetupApplication(int cellId)
   for(int i = 0; i < NUM_UAV; i++)
   {
     sinkUav[i] = Socket::CreateSocket (uav[cellId].Get (i), tid);
-      InetSocketAddress local = InetSocketAddress (Ipv4Address::GetAny (), 80);
-      sinkUav[i] ->Bind (local);
-      sinkUav[i] ->SetRecvCallback (MakeCallback (&ReceivePacket));
+    InetSocketAddress local = InetSocketAddress (Ipv4Address::GetAny (), 80);
+    sinkUav[i] ->Bind (local);
+    sinkUav[i] ->SetRecvCallback (MakeCallback (&ReceivePacket));
   }
   for(int i = 0; i < NUM_SENSOR; i++)
   {
     sinkSensor[i] = Socket::CreateSocket (sensor[cellId].Get (i), tid);
-      InetSocketAddress local = InetSocketAddress (Ipv4Address::GetAny (), 80);
-      sinkSensor[i] ->Bind (local);
-      sinkSensor[i] ->SetRecvCallback (MakeCallback (&ReceivePacket));
+    InetSocketAddress local = InetSocketAddress (Ipv4Address::GetAny (), 80);
+    sinkSensor[i] ->Bind (local);
+    sinkSensor[i] ->SetRecvCallback (MakeCallback (&ReceivePacket));
   }
   for(int i = 0; i < NUM_GW ; i++)
   {
     sinkGw[i] = Socket::CreateSocket (gw[cellId].Get (i), tid);
-      InetSocketAddress local = InetSocketAddress (Ipv4Address::GetAny (), 80);
-      sinkGw[i] ->Bind (local);
-      sinkGw[i] ->SetRecvCallback (MakeCallback (&ReceivePacket));
+    InetSocketAddress local = InetSocketAddress (Ipv4Address::GetAny (), 80);
+    sinkGw[i] ->Bind (local);
+    sinkGw[i] ->SetRecvCallback (MakeCallback (&ReceivePacket));
   }
 }
 
 void ReceivePacket (Ptr<Socket> socket)
 {
   while (socket->Recv ())
-    {
-      NS_LOG_UNCOND ("Received one packet!");
-    }
+  {
+    //NS_LOG_UNCOND ("Received one packet!");
+  }
 }
 void GenerateTraffic (Ptr<Socket> socket, uint32_t pktSize,
                              uint32_t pktCount, Time pktInterval )
 {
   if (pktCount > 0)
-    {
-      socket->Send (Create<Packet> (pktSize));
-      Simulator::Schedule (pktInterval, &GenerateTraffic,
+  {
+    socket->Send (Create<Packet> (pktSize));
+    Simulator::Schedule (pktInterval, &GenerateTraffic,
                            socket, pktSize,pktCount - 1, pktInterval);
-    }
+  }
   else
-    {
-      socket->Close ();
-    }
+  {
+    socket->Close ();
+  }
 }
 void SendPacket(Ptr<Node> src, Ptr<Node> dst, int numPkt, int pktSize, double interval)
 {
-  std::cout<<"send packet"<<std::endl;
+  //std::cout<<"send packet"<<std::endl;
+  dataLoad += (numPkt*pktSize);
   Ipv4Address dstAddr = dst->GetObject<Ipv4L3Protocol> ()->GetInterface (1)->GetAddress (0).GetLocal ();
   Ptr<Socket> source = Socket::CreateSocket (src, tid);
-    InetSocketAddress remote = InetSocketAddress (dstAddr, 80);
-    source->SetAllowBroadcast (true);
-    source->Connect (remote);
-    GenerateTraffic(source, pktSize, numPkt, Seconds(interval));
+  InetSocketAddress remote = InetSocketAddress (dstAddr, 80);
+  source->SetAllowBroadcast (true);
+  source->Connect (remote);
+  GenerateTraffic(source, pktSize, numPkt, Seconds(interval));
 } 
+void UavSend(int cellId)
+{
+  for(int i = 0; i < NUM_UAV; i++)
+  {
+    Simulator::Schedule(Seconds(i*3),&SendPacket, uav[cellId].Get(i), gw[cellId].Get(0), 5, 1024, 0.2);
+  }
+  Simulator::Schedule(Seconds(30), &UavSend, cellId);
+}
+void SensorSend(int cellId)
+{
+  Ptr<UniformRandomVariable> rd = CreateObject<UniformRandomVariable>();
+  for(int i = 0; i < NUM_SENSOR; i++)
+  {
+    Simulator::Schedule(Seconds(rd->GetValue(0, 60)), &SendPacket, sensor[cellId].Get(i), gw[cellId].Get(0), 3, 512, 0.2);
+  }
+  Simulator::Schedule(Seconds(60*2), &SensorSend, cellId);
+}

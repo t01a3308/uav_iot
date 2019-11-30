@@ -37,7 +37,7 @@
 #define VUAV 5.0 // m/s
 
 #define K_FACTOR 1
-#define Rd 0.5
+#define Rd 2.0
 //#define ALPHA_FACTOR 1
 #define RESOURCE_FACTOR 1.0
 #define VISITED_TIME_FACTOR 2.0
