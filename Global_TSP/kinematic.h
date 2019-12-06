@@ -56,6 +56,7 @@ int idNextSite = 0;
 uint16_t idCurrentSite[NUM_CELL];
 int uavState[NUM_CELL][NUM_UAV];
 SiteList cell_site_list[NUM_CELL];
+int finish[NUM_CELL];
 //
 Vector GetPosition(Ptr<Node> node);
 void SetPosition(Ptr<Node> node, Vector pos);
@@ -67,7 +68,7 @@ void CalculateCellCenter();
 void SetupSensorPosition(int cellId);
 void SetupUavPosition(int cellId);
 void SetupGwPosition(int cellId);
-void GenerateSensorData(int cellId);
+void GenerateSensorData(int cellId, double threshold);
 //functions to solve TSP
 void TSP(int cellId);
 int check(int v, int k);
@@ -79,6 +80,7 @@ void SiteAssignment(int cellId, int uavId);
 int CalculateNumberOfSites(int cellId, int uavId);
 void DoTask(int cellId, int uavId, int idFirstSite, int idLastSite);
 void NextRound(int cellId, int uavId);
+int IsFinish();
 int IsFinish(int cellId);
 void StopSimulation();
 /*Function implementation goes here*/
@@ -210,15 +212,17 @@ void SetupGwPosition(int cellId)
   }
     //std::cout<<GetPosition(gw.Get(3))<<std::endl;
 }
-void GenerateSensorData(int cellId)
+void GenerateSensorData(int cellId, double threshold)
 {
+
   std::cout<<"generate sensor data cell "<<cellId<<std::endl;
+  finish[cellId] = 0;
   Ptr<UniformRandomVariable> rd = CreateObject<UniformRandomVariable>();
   for(int i = 0; i < NUM_SENSOR; i++)
   {
-    double data = rd -> GetValue(MIN_VALUE, MAX_VALUE);
+    double data = rd -> GetValue(0.0, 100.0);
     sensorData[cellId][sensor[cellId].Get(i)] = data;
-    if(data > THRESHOLD)
+    if(data > threshold)
     {
       Ptr<SITE> s = CreateObject<SITE>(GetPosition(sensor[cellId].Get(i)), data);
       cell_site_list[cellId].Add(s);
@@ -377,12 +381,27 @@ void NextRound(int cellId, int uavId)
   uavState[cellId][uavId] = 0;
   if(IsFinish(cellId))
   {
-    StopSimulation();
+    finish[cellId] = 1;
+    if(IsFinish())
+    {
+      StopSimulation();
+    }
   }
   else
   {
     Simulator::Schedule(Seconds(60*5), &SiteAssignment, cellId, uavId);
   }
+}
+int IsFinish()
+{
+  for(int i =0 ; i < NUM_CELL; i++)
+  {
+    if(finish[i] == 0)
+    {
+      return 0;
+    }
+  }
+  return 1;
 }
 int IsFinish(int cellId)
 {

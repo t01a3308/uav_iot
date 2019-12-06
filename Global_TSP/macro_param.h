@@ -23,15 +23,11 @@
 #define NUM_UAV 3 //per cell
 #define NUM_SENSOR 30 // per cell
 #define NUM_GW 1 //per cell
-#define NUM_CELL 1
+#define NUM_CELL 7
 #define MAX_NUM_CELL 37
 #define X0 500.0 //  position of cell centre 0
 #define Y0 500.0 //
 #define CELL_RADIUS 500.0 // cell radius
-//data value to determine site
-#define MIN_VALUE 0.0
-#define MAX_VALUE 200.0
-#define THRESHOLD 100.0 // 
 //
 #define MAX_SITE_PER_CELL 30
 #define VUAV 5.0 // m/s

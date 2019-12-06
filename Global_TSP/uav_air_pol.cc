@@ -46,9 +46,7 @@ SensorContainer sensor[NUM_CELL];
 GwContainer gw[NUM_CELL];
 NodeContainer allNodes[NUM_CELL];
 std::map<Ptr<Node>, double> sensorData[NUM_CELL]; // all data
-//std::map<Ptr<Node>, double> highData[NUM_CELL]; // all high data
-//std::map<Ptr<Node>, double> taskToDo[NUM_CELL][NUM_UAV]; // all tasks of a uav
-//std::queue<std::map<Ptr<Node>, double>> q[NUM_CELL][NUM_UAV];// sequence to do tasks
+
 double dataLoad = 0;
 int main()
 { 
@@ -84,12 +82,18 @@ int main()
     SetupApplication(i);
     UavSend(i);
     SensorSend(i);
-    GenerateSensorData(i);
+    if(i == 0)
+    {
+      GenerateSensorData(i, 50.0);
+    }
+    else
+    {
+      GenerateSensorData(i, 75.0);
+    }
     TSP(i);
     Execute(i);
   }
- // Simulator::Schedule(Seconds(35), &SendPacket, uav[0].Get(0), uav[0].Get(2), 3, 256, 2);
-  //Simulator::Stop(Seconds(50));
+
   anim = new AnimationInterface("uav_air_pol.xml");
   Simulator::Run();
   Simulator::Destroy();

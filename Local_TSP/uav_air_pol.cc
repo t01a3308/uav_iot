@@ -84,7 +84,14 @@ int main()
     SetupApplication(i);
     UavSend(i);
     SensorSend(i);
-    GenerateSensorData(i);
+    if(i == 0)
+    {
+      GenerateSensorData(i, 50.0);
+    }
+    else
+    {
+      GenerateSensorData(i, 75.0);
+    }
     Execute(i);
   }
  // Simulator::Schedule(Seconds(35), &SendPacket, uav[0].Get(0), uav[0].Get(2), 3, 256, 2);

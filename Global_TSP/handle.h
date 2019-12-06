@@ -157,6 +157,7 @@ private:
 	double data_load = 0;
 	double power = 0; //
 	double t_old = 0; //power and t_old are used to calculate energy
+	//queue < Ptr<SITE> > q;
 public:
 	UAV()
 	{
@@ -168,7 +169,10 @@ public:
 	void UpdateFliedDistance(double distance);
 	double GetConsumedEnergy();
 	double GetFliedDistance();
-	
+	// uint32_t GetSiteSize();
+	// void AddSite(Ptr<SITE> s);
+	// Ptr<SITE> GetSite();
+	// void RemoveSite();
 	//void handleSite(Site &site, double to_conc);
 };
 void UAV::UpdateEnergy(double new_power)
@@ -190,7 +194,22 @@ double UAV::GetFliedDistance()
 {
 	return flied_distance;
 }
-
+// uint32_t UAV::GetSiteSize()
+// {
+// 	return q.size();
+// }
+// void UAV::AddSite(Ptr<SITE> s)
+// {
+// 	q.push(s);
+// }
+// Ptr<SITE> UAV::GetSite()
+// {
+// 	return q.front();
+// }
+// void UAV::RemoveSite()
+// {
+// 	q.pop();
+// }
 //
 class SENSOR: public Node
 {
