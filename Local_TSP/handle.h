@@ -150,13 +150,14 @@ void SiteList::Clear()
 class UAV: public Node
 {
 private:
+	int cell_id;
+	int uav_id;
+	double flight_time = 0;
 	double consumed_energy = 0;
-	double sensed_stat = 0;
-	//double max_energy = 999999;
 	double flied_distance = 0;
-	double data_load = 0;
 	double power = 0; //
 	double t_old = 0; //power and t_old are used to calculate energy
+	queue < Ptr<SITE> > q;
 public:
 	UAV()
 	{
@@ -164,13 +165,33 @@ public:
 	~UAV()
 	{
 	};
+	UAV(int cellId, int uavId);
+	int GetCellId();
+	int GetUavId();
 	void UpdateEnergy(double new_power);
 	void UpdateFliedDistance(double distance);
 	double GetConsumedEnergy();
 	double GetFliedDistance();
-	
-	//void handleSite(Site &site, double to_conc);
+	void UpdateFlightTime(double t);
+	double GetFlightTime();
+	uint32_t GetSiteSize();
+	void AddSite(Ptr<SITE> s);
+	Ptr<SITE> GetSite();
+	void RemoveSite();
 };
+UAV::UAV(int cellId, int uavId)
+{
+	this->cell_id = cellId;
+	this->uav_id = uavId;
+}
+int UAV::GetCellId()
+{
+	return cell_id;
+}
+int UAV::GetUavId()
+{
+	return uav_id;
+}
 void UAV::UpdateEnergy(double new_power)
 {
 	double now = GetNow();
@@ -190,7 +211,30 @@ double UAV::GetFliedDistance()
 {
 	return flied_distance;
 }
-
+void UAV::UpdateFlightTime(double t)
+{
+	flight_time += t;
+}
+double UAV::GetFlightTime()
+{
+	return flight_time;
+}
+uint32_t UAV::GetSiteSize()
+{
+	return q.size();
+}
+void UAV::AddSite(Ptr<SITE> s)
+{
+	q.push(s);
+}
+Ptr<SITE> UAV::GetSite()
+{
+	return q.front();
+}
+void UAV::RemoveSite()
+{
+	q.pop();
+}
 //
 class SENSOR: public Node
 {
@@ -241,6 +285,7 @@ public:
 	Ptr<UAV> GetUav(uint32_t i);
 	double CalculateEnergyConsumption();
 	double CalculateFliedDistance();
+	double CalculateFlightTime();
 };
 Ptr<UAV> UAVContainer::GetUav(uint32_t i)
 {
@@ -264,7 +309,18 @@ double UAVContainer::CalculateFliedDistance()
 	}
 	return distance;
 }
-
+double UAVContainer::CalculateFlightTime()
+{
+	double t = 0;
+	for(int i = 0; i < NUM_UAV; i++)
+	{
+		Ptr<UAV> u = this->GetUav(i);
+		double ti = u->GetFlightTime();
+		t += ti;
+		//std::cout<<"flight_time cell "<<u->GetCellId()<<", uav "<<u->GetUavId()<<": "<<ti<<std::endl;
+	}
+	return t;
+}
 //
 class SensorContainer: public NodeContainer
 {

@@ -50,6 +50,9 @@ private:
 	double w;
 	double utility;
 	int id;
+	int status = 0;							  // 0 - waiting for bidder
+                                              // 1 - in auction
+	vector < pair<Ptr<UAV>, double > > bidder;
 public:
 	static int cnt;
 	SITE(Vector p, double data_value);
@@ -63,8 +66,12 @@ public:
 	double GetUrgency();
 	double GetUtility();
 	int GetId();
-	//double sprayVol(double c_h, double c_l);
-	//double dustVol(void);
+	void AddBidder(Ptr<UAV> u, double distance);
+	Ptr<UAV> GetBidder();
+	void RemoveBidder();
+	int CheckPrice(Ptr<UAV> u, double distance);
+	int GetStatus();
+	void SetStatus(int sta);
 };
 int SITE::cnt = 0;
 SITE::SITE(Vector p, double data_value)
@@ -102,6 +109,35 @@ int SITE::GetId()
 {
 	return id;
 }
+void SITE::AddBidder(Ptr<UAV> u, double distance)
+{
+	bidder.push_back(make_pair(u, distance));
+}
+Ptr<UAV> SITE::GetBidder()
+{
+	return bidder[0].first;
+}
+void SITE::RemoveBidder()
+{	
+	bidder.pop_back();
+}
+int SITE::CheckPrice(Ptr<UAV> newBidder, double distance)
+{
+	if(distance < bidder[0].second)
+	{
+		return 1;
+	}
+	return 0;
+	
+}
+int SITE::GetStatus()
+{
+	return status;
+}
+void SITE::SetStatus(int sta)
+{
+	status = sta;
+}
 //
 class SiteList
 {
@@ -117,6 +153,7 @@ public:
 
 	};
 	void Add(Ptr<SITE> site);
+	void Remove(Ptr<SITE> site);
 	Ptr<SITE> Get(uint32_t i);
 	uint32_t GetSize();
 	double GetUtility();
@@ -125,6 +162,19 @@ public:
 void SiteList::Add(Ptr<SITE> site)
 {
 	m_list.push_back(site);
+}
+void SiteList::Remove(Ptr<SITE> site)
+{
+	vector < Ptr<SITE> >:: iterator it = m_list.begin();
+	while(it != m_list.end())
+	{
+		if(*it == site)
+		{
+			m_list.erase(it);
+			break;
+		}
+		it++;
+	}
 }
 Ptr<SITE> SiteList::Get(uint32_t i)
 {
@@ -152,9 +202,12 @@ class UAV: public Node
 private:
 	int cell_id;
 	int uav_id;
+	double current_resource = MAX_RESOURCE_PER_UAV;
 	double flight_time = 0;
 	double consumed_energy = 0;
+	double sensed_stat = 0;
 	double flied_distance = 0;
+	double data_load = 0;
 	double power = 0; //
 	double t_old = 0; //power and t_old are used to calculate energy
 	queue < Ptr<SITE> > q;
@@ -175,6 +228,8 @@ public:
 	void UpdateFlightTime(double t);
 	double GetFlightTime();
 	uint32_t GetSiteSize();
+	double GetResource();
+	void SetResource(double newResource);
 	void AddSite(Ptr<SITE> s);
 	Ptr<SITE> GetSite();
 	void RemoveSite();
@@ -183,7 +238,7 @@ UAV::UAV(int cellId, int uavId)
 {
 	this->cell_id = cellId;
 	this->uav_id = uavId;
-}
+};
 int UAV::GetCellId()
 {
 	return cell_id;
@@ -223,6 +278,14 @@ uint32_t UAV::GetSiteSize()
 {
 	return q.size();
 }
+double UAV::GetResource()
+{
+	return current_resource;
+}
+void UAV::SetResource(double newResource)
+{
+	current_resource = newResource;
+}
 void UAV::AddSite(Ptr<SITE> s)
 {
 	q.push(s);
@@ -235,6 +298,7 @@ void UAV::RemoveSite()
 {
 	q.pop();
 }
+
 //
 class SENSOR: public Node
 {

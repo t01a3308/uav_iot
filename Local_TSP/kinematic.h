@@ -57,7 +57,6 @@ int uavState[NUM_CELL][NUM_UAV];
 SiteList cell_site_list[NUM_CELL];// all sites
 queue < Ptr<SITE> > sortedSites[NUM_CELL]; // depend on urgency
 SiteList sitesOfUav[NUM_CELL][NUM_UAV];// sites uav will visit
-queue < Ptr<SITE> > sequenceToVisit[NUM_CELL][NUM_UAV]; // 
 //
 Vector GetPosition(Ptr<Node> node);
 void SetPosition(Ptr<Node> node, Vector pos);
@@ -69,7 +68,7 @@ void CalculateCellCenter();
 void SetupSensorPosition(int cellId);
 void SetupUavPosition(int cellId);
 void SetupGwPosition(int cellId);
-void GenerateSensorData(int cellId, double threshold);
+void GenerateSensorData(int cellId, double maxValue);
 //functions to solve TSP
 void TSP(int cellId, int uavId);
 int check(int v, int k);
@@ -113,6 +112,10 @@ double Goto(Ptr<Node> node, Vector dest)
   double vx = dest.x - pos.x;
   double vy = dest.y - pos.y;
   double length = std::sqrt(vx*vx + vy*vy);
+  if(length == 0)
+  {
+    return 0;
+  }
   SetVelocity(node, Vector(vx/length*VUAV, vy/length*VUAV, 0));
   double flightTime = length/VUAV;
   Simulator::Schedule(Seconds(flightTime), &SetVelocity, node, Vector(0, 0, 0));
@@ -210,20 +213,20 @@ void SetupGwPosition(int cellId)
   m.Install (gw[cellId]);
   for(int i = 0; i < NUM_GW ; i++)
   {
-    SetPosition(gw[cellId].Get(i), Vector(X[i], Y[i] + CELL_RADIUS, 0));
+    SetPosition(gw[cellId].Get(i), Vector(X[cellId], Y[cellId] + CELL_RADIUS, 0));
   }
     //std::cout<<GetPosition(gw.Get(3))<<std::endl;
 }
-void GenerateSensorData(int cellId, double threshold)
+void GenerateSensorData(int cellId, double maxValue)
 {
   std::cout<<"generate sensor data cell "<<cellId<<std::endl;
   finish[cellId] = 0;
   Ptr<UniformRandomVariable> rd = CreateObject<UniformRandomVariable>();
   for(int i = 0; i < NUM_SENSOR; i++)
   {
-    double data = rd -> GetValue(0.0, 100.0);
+    double data = rd -> GetValue(MIN_VALUE, maxValue);
     sensorData[cellId][sensor[cellId].Get(i)] = data;
-    if(data > threshold)
+    if(data > THRESHOLD)
     {
       Ptr<SITE> s = CreateObject<SITE>(GetPosition(sensor[cellId].Get(i)), data);
       cell_site_list[cellId].Add(s);
@@ -379,11 +382,16 @@ void SiteAssignment(int cellId, int uavId)
   {
     return;
   }
-  int numSite = CalculateNumberOfSites(cellId, uavId);
-  int num = numSite < totalSite ? numSite:totalSite;
-  for(int i = 0; i < num; i++)
+  double resource = 0;
+  for(int i = 0; i < totalSite; i++)
   {
-    sitesOfUav[cellId][uavId].Add(sortedSites[cellId].front());
+    Ptr<SITE> s = sortedSites[cellId].front();
+    resource += s -> GetResource();
+    if(resource > MAX_RESOURCE_PER_UAV)
+    {
+      break;
+    }
+    sitesOfUav[cellId][uavId].Add(s);
     sortedSites[cellId].pop();
   }
   if(sitesOfUav[cellId][uavId].GetSize() > 0)
@@ -392,40 +400,41 @@ void SiteAssignment(int cellId, int uavId)
   }
   TSP(cellId, uavId);
   int n = sitesOfUav[cellId][uavId].GetSize();
+  Ptr<UAV> u = uav[cellId].GetUav(uavId);
   for(int i = 1; i <= n; i++)
   {
-    sequenceToVisit[cellId][uavId].push(sitesOfUav[cellId][uavId].Get(path[i]));
+    u->AddSite(sitesOfUav[cellId][uavId].Get(path[i]));
   }
   DoTask(cellId, uavId);  
 }
-int CalculateNumberOfSites(int cellId, int uavId)
-{
-  return 3;
-}
+
 void DoTask(int cellId, int uavId)
 {
   //std::cout<<GetNow()<<": goi ham dotask cell "<<cellId<<" uav "<<uavId<<std::endl;
   Ptr<UAV> u = uav[cellId].GetUav(uavId);
-  int n = sequenceToVisit[cellId][uavId].size();
+  int n = u->GetSiteSize();
   if(n == 0)
   {
     sitesOfUav[cellId][uavId].Clear();
     std::cout<<GetNow()<<": cell "<<cellId<<", uav "<<uavId<<" go back"<<std::endl;
     double flightTime = Goto(uav[cellId].Get(uavId), GetPosition(gw[cellId].Get(0)));    
+    u -> UpdateFlightTime(flightTime);
     u -> UpdateEnergy(FLYING);
     u -> UpdateFliedDistance(VUAV*flightTime);
     Simulator::Schedule(Seconds(flightTime), &NextRound, cellId, uavId);   
     Simulator::Schedule(Seconds(flightTime), &UAV::UpdateEnergy, u, STOP); 
     return;
   }
-  Ptr<SITE> firstSite = sequenceToVisit[cellId][uavId].front();
-  sequenceToVisit[cellId][uavId].pop();
-  std::cout<<GetNow()<<": cell "<<cellId<<", uav "<<uavId<<" go to site "<<firstSite->GetId()<<std::endl;
-  double flightTime = Goto(uav[cellId].Get(uavId), firstSite -> GetSitePosition());
+  Ptr<SITE> s = u->GetSite();
+  u->RemoveSite();
+  std::cout<<GetNow()<<": cell "<<cellId<<", uav "<<uavId<<" go to site "<<s->GetId()<<std::endl;
+  double flightTime = Goto(uav[cellId].Get(uavId), s -> GetSitePosition());
   u -> UpdateEnergy(FLYING);
   u -> UpdateFliedDistance(VUAV*flightTime);
+  double visitedTime = s -> GetVisitedTime();
+  u->UpdateFlightTime(flightTime + visitedTime);
   Simulator::Schedule(Seconds(flightTime), &UAV::UpdateEnergy, u, HANDLING);
-  Simulator::Schedule(Seconds(flightTime + firstSite -> GetVisitedTime()), &DoTask, cellId, uavId);
+  Simulator::Schedule(Seconds(flightTime + visitedTime), &DoTask, cellId, uavId);
   //std::cout<<"ket thuc ham dotask cell "<<cellId<<" uav "<<uavId<<std::endl;
 }
 void NextRound(int cellId, int uavId)
@@ -480,14 +489,17 @@ void StopSimulation()
   double energy = 0;
   double fliedDistance = 0;
   double utility = 0;
+  double flightTime = 0;
   for(int i = 0; i < NUM_CELL; i++)
   {
     energy += uav[i].CalculateEnergyConsumption();
     fliedDistance += uav[i].CalculateFliedDistance();
     utility += cell_site_list[i].GetUtility();
+    flightTime += uav[i].CalculateFlightTime();
   }
   double cost = fliedDistance * Rd;
-  std::cout<<"Flight time: "<<GetNow()<<" s"<<std::endl;
+  std::cout<<"Spanning time: "<<GetNow()<<" s"<<std::endl;
+  std::cout<<"Flight time: "<<flightTime<<" s"<<std::endl;
   std::cout<<"Energy: "<<energy/1000000.0<<" MJ"<<std::endl;
   std::cout<<"Flied distance: "<<fliedDistance/1000.0<<" km"<<std::endl;
   std::cout<<"Benefit: "<<utility - cost<<std::endl;

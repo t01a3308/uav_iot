@@ -64,7 +64,7 @@ int main()
    //  gw[i].Create(NUM_GW );
   	for(int j = 0; j < NUM_UAV; j++)
     {
-      Ptr<UAV> u = CreateObject<UAV>();
+      Ptr<UAV> u = CreateObject<UAV>(i, j);
       uav[i].Add(u);
     }
     for(int j = 0; j < NUM_SENSOR; j++)
@@ -86,7 +86,7 @@ int main()
     SensorSend(i);
     if(i == 0)
     {
-      GenerateSensorData(i, 50.0);
+      GenerateSensorData(i, 100.0);
     }
     else
     {

@@ -50,6 +50,7 @@ std::map<Ptr<Node>, double> sensorData[NUM_CELL]; // all data
 double dataLoad = 0;
 int main()
 { 
+
  // LogComponentEnable ("MobilityHelper", LOG_LEVEL_DEBUG);
   RngSeedManager::SetSeed (3);  // Changes seed from default of 1 to 3
   RngSeedManager::SetRun (7);   // Changes run number from default of 1 to 7  
@@ -87,13 +88,12 @@ int main()
     }
     else
     {
-      GenerateSensorData(i, 60.0);
+      GenerateSensorData(i, 75.0);
     }
-    TSP(i);
     Execute(i);
   }
 
-  anim = new AnimationInterface("global_tsp.xml");
+  anim = new AnimationInterface("iterative.xml");
   Simulator::Run();
   Simulator::Destroy();
   

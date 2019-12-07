@@ -28,11 +28,13 @@
 #define X0 500.0 //  position of cell centre 0
 #define Y0 500.0 //
 #define CELL_RADIUS 500.0 // cell radius
-
+// sensor data
+#define MIN_VALUE 0.0
+#define THRESHOLD 50.0
 //
 #define MAX_SITE_PER_CELL 30
 #define VUAV 5.0 // m/s
-
+#define MAX_RESOURCE_PER_UAV 250.0
 #define K_FACTOR 1
 #define Rd 2.0
 //#define ALPHA_FACTOR 1
