@@ -48,12 +48,10 @@ extern std::map<Ptr<Node>, double> sensorData[NUM_CELL]; // all data
 int appear[MAX_SITE_PER_CELL+1];
 double dist[MAX_SITE_PER_CELL+1][MAX_SITE_PER_CELL+1];
 int x[MAX_SITE_PER_CELL+1];
-int path[MAX_SITE_PER_CELL+1];
+int path[NUM_CELL][MAX_SITE_PER_CELL+1];
 double dmin;
 double result;
 double MIN;
-int idNextSite = 0;
-uint16_t idCurrentSite[NUM_CELL];
 int uavState[NUM_CELL][NUM_UAV];
 SiteList cell_site_list[NUM_CELL];
 SiteList segment[NUM_CELL][MAX_SITE_PER_CELL];
@@ -76,8 +74,8 @@ void GenerateSensorData(int cellId, double maxValue);
 //functions to solve TSP
 void TSP(int cellId);
 int check(int v, int k);
-void solution(int n);
-void TRY(int k, int n);
+void solution(int cellId, int n);
+void TRY(int cellId, int k, int n);
 //
 double CalculateCost(double distance);
 void Execute(int cellId);
@@ -279,12 +277,12 @@ void TSP(int cellId)
   }
   //Solve TSP
   std::cout<<"solve tsp"<<std::endl;
-  TRY(1, n);  
+  TRY(cellId, 1, n);  
   std::cout<<"path: "<<std::endl;
   
   for(int i = 1; i <= n; i++)
   {
-    std::cout<<path[i]<<" ";
+    std::cout<<path[cellId][i]<<" ";
   }
   std::cout<<std::endl;
   std::cout<<"length : "<<MIN<<std::endl;
@@ -294,7 +292,7 @@ int check(int v, int k)
 {
   return !appear[v]; //still not visited by UAV in TRY
 }
-void solution(int n)
+void solution(int cellId, int n)
 {
 	/* check if the current path is shorter than the previous, given
 	the same sites */
@@ -305,11 +303,11 @@ void solution(int n)
     MIN = rs;
     for(int i = 0; i <= n; i++)
     {
-      path[i] = x[i] - 1;
+      path[cellId][i] = x[i] - 1;
     }
   }
 }
-void TRY(int k, int n)
+void TRY(int cellId, int k, int n)
 {
 	/*k: next site to visit; n: total sites */
   for(int v = 1; v <= n; v++)
@@ -321,13 +319,13 @@ void TRY(int k, int n)
       appear[v] = 1; // yes, already visited
       if(k == n )
       {
-        solution(n);
+        solution(cellId, n);
       }
       else
       {
         if(result + dmin*(n-k+1) < MIN)
         {       
-          TRY(k + 1, n);
+          TRY(cellId, k + 1, n);
         }
       }
       appear[v] = 0;
@@ -438,8 +436,11 @@ void DivideSitesIntoSegment(int cellId)
   double resource = 0;
   for(int i = 0; i < totalSite; i++)
   {
-    Ptr<SITE> s = cell_site_list[cellId].Get(path[i + 1]);
+    //std::cout<<i<<std::endl;
+    Ptr<SITE> s = cell_site_list[cellId].Get(path[cellId][i + 1]);
+    //std::cout<<s<<std::endl;
     double siteResource = s -> GetResource();
+   // std::cout<<siteResource<<std::endl;
     resource += siteResource;
     if(resource > MAX_RESOURCE_PER_UAV)
     {
@@ -473,6 +474,7 @@ void FindSegment(int cellId, int uavId)
       {
         mark[cellId][i] = 1;
         id = i;
+        break;
       }
     }
     if(id != 999)

@@ -85,14 +85,21 @@ int main()
     {
       GenerateSensorData(i, 100.0);
     }
+    else if(i == NUM_CELL-1)
+    {
+      GenerateSensorData(i, 45.0);
+    }
     else
     {
       GenerateSensorData(i, 60.0);
     }
     TSP(i);
+    
+  }
+  for(int i = 0; i < NUM_CELL; i++)
+  {
     Execute(i);
   }
-
   anim = new AnimationInterface("global_tsp.xml");
   Simulator::Run();
   Simulator::Destroy();
