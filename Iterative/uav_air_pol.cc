@@ -34,7 +34,7 @@
 /*Added header files*/
 #include "kinematic.h"
 #include "macro_param.h"
-#include "communication.h"
+//#include "communication.h"
 
 using namespace ns3;
 
@@ -82,17 +82,12 @@ int main()
     SetupApplication(i);
     UavSend(i);
     SensorSend(i);
-    if(i == 0)
-    {
-      GenerateSensorData(i, 100.0);
-    }
-    else
-    {
-      GenerateSensorData(i, 75.0);
-    }
+  }
+  CreateSite();
+  for(int i = 0; i < NUM_CELL; i++)
+  {
     Execute(i);
   }
-
   anim = new AnimationInterface("iterative.xml");
   Simulator::Run();
   Simulator::Destroy();

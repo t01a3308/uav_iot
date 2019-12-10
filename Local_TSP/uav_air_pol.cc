@@ -34,7 +34,7 @@
 /*Added header files*/
 #include "kinematic.h"
 #include "macro_param.h"
-#include "communication.h"
+//#include "communication.h"
 
 using namespace ns3;
 
@@ -46,9 +46,6 @@ SensorContainer sensor[NUM_CELL];
 GwContainer gw[NUM_CELL];
 NodeContainer allNodes[NUM_CELL];
 std::map<Ptr<Node>, double> sensorData[NUM_CELL]; // all data
-//std::map<Ptr<Node>, double> highData[NUM_CELL]; // all high data
-//std::map<Ptr<Node>, double> taskToDo[NUM_CELL][NUM_UAV]; // all tasks of a uav
-//std::queue<std::map<Ptr<Node>, double>> q[NUM_CELL][NUM_UAV];// sequence to do tasks
 double dataLoad = 0;
 int main()
 { 
@@ -59,9 +56,6 @@ int main()
   CalculateCellCenter();
   for(int i = 0; i < NUM_CELL; i++)
   {
-  	// uav[i].Create(NUM_UAV);
-   //  sensor[i].Create(NUM_SENSOR);   
-   //  gw[i].Create(NUM_GW );
   	for(int j = 0; j < NUM_UAV; j++)
     {
       Ptr<UAV> u = CreateObject<UAV>(i, j);
@@ -83,19 +77,13 @@ int main()
     SetupCommunication(i);
     SetupApplication(i);
     UavSend(i);
-    SensorSend(i);
-    if(i == 0)
-    {
-      GenerateSensorData(i, 100.0);
-    }
-    else
-    {
-      GenerateSensorData(i, 75.0);
-    }
+    SensorSend(i);    
+  }
+  CreateSite();
+  for(int i = 0; i < NUM_CELL; i++)
+  {
     Execute(i);
   }
- // Simulator::Schedule(Seconds(35), &SendPacket, uav[0].Get(0), uav[0].Get(2), 3, 256, 2);
-  //Simulator::Stop(Seconds(50));
   anim = new AnimationInterface("local_tsp.xml");
   Simulator::Run();
   Simulator::Destroy();

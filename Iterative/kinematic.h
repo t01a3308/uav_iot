@@ -33,6 +33,7 @@
 #include <math.h>
 #include "macro_param.h"
 #include "handle.h"
+#include "communication.h"
 using namespace ns3;
 
 extern double dataLoad;
@@ -42,13 +43,14 @@ extern SensorContainer sensor[NUM_CELL];
 extern GwContainer gw[NUM_CELL];
 extern NodeContainer allNodes[NUM_CELL];
 extern std::map<Ptr<Node>, double> sensorData[NUM_CELL]; // all data
-
+//
+int siteData[MAX_SITE_PER_CELL*NUM_CELL];
+int numberOfSites[NUM_CELL-1];
+//
 int uavState[NUM_CELL][NUM_UAV];
 SiteList cell_site_list[NUM_CELL], temp[NUM_CELL];
 int finish[NUM_CELL];
- // 0 - waiting for bidder
-                                              // 1 - in auction
-                                              // 2 - done
+
 //
 Vector GetPosition(Ptr<Node> node);
 void SetPosition(Ptr<Node> node, Vector pos);
@@ -60,9 +62,9 @@ void CalculateCellCenter();
 void SetupSensorPosition(int cellId);
 void SetupUavPosition(int cellId);
 void SetupGwPosition(int cellId);
-void GenerateSensorData(int cellId, double threshold);
-//functions to solve TSP
+void CreateSite();
 //
+double CalculateCost(double distance);
 void Execute(int cellId);
 void FindSite(Ptr<UAV> u);
 int CalculateNumberOfSites(int cellId, int uavId);
@@ -204,25 +206,78 @@ void SetupGwPosition(int cellId)
   }
     //std::cout<<GetPosition(gw.Get(3))<<std::endl;
 }
-void GenerateSensorData(int cellId, double maxValue)
+void CreateSite()
 {
-
-  std::cout<<"generate sensor data cell "<<cellId<<std::endl;
-  finish[cellId] = 0;
-  Ptr<UniformRandomVariable> rd = CreateObject<UniformRandomVariable>();
-  for(int i = 0; i < NUM_SENSOR; i++)
+  // calculate number of sites for each cell
+  std::cout<<"Calculate number of sites for each cell"<<std::endl;
+  int half = MAX_SITE_PER_CELL/2;
+  if(TOTAL_SITE <= half*NUM_CELL)
   {
-    double data = rd -> GetValue(MIN_VALUE, maxValue);
-    sensorData[cellId][sensor[cellId].Get(i)] = data;
-    if(data > THRESHOLD)
+    int quotient = TOTAL_SITE / NUM_CELL;
+    int remainder = TOTAL_SITE % NUM_CELL;
+    for(int i = 0; i < NUM_CELL - 1; i++)
     {
-      Ptr<SITE> s = CreateObject<SITE>(GetPosition(sensor[cellId].Get(i)), data);
-      cell_site_list[cellId].Add(s);
-      temp[cellId].Add(s);
+      if(i == 0)
+      {
+        numberOfSites[i] = 2*quotient;
+      }
+      else
+      {
+        numberOfSites[i] = quotient;
+      }
+    }
+    int id[] = {0,0,1,2,3,4,5};
+    int k = 0;
+    for(int i = 0; i < remainder; i++)
+    {
+      numberOfSites[id[k]]++;
+      k++;
+    }
+  }
+  else
+  {
+    if(TOTAL_SITE > MAX_SITE_PER_CELL*(NUM_CELL-1))
+    {
+      std::cout<<"Max total site is "<<MAX_SITE_PER_CELL*(NUM_CELL-1)<<std::endl;
+      Simulator::Stop();
+    }
+    else
+    {
+      numberOfSites[0] = MAX_SITE_PER_CELL;
+      int difference = TOTAL_SITE - half*NUM_CELL;
+      int id[] = {1,2,3,4,5};
+      int k = 0;
+      for(int i = 0; i < difference; i++)
+      {
+        numberOfSites[id[k]]++;
+        k++;
+        if(k > 4)
+        {
+          k = 0;
+        }
+      }
+    }
+  }
+  //create site
+  std::cout<<"Creating sites"<<std::endl;
+  finish[NUM_CELL-1] = 1;
+  Ptr<UniformRandomVariable> rd = CreateObject<UniformRandomVariable>();
+  for(int i = 0; i < NUM_CELL - 1; i++)
+  {
+    finish[i] = 0;
+    for(int j = 0; j < numberOfSites[i]; j++)
+    {
+      double data = rd -> GetValue(MIN_VALUE, MAX_VALUE);
+      Ptr<SITE> s = CreateObject<SITE>(GetPosition(sensor[i].Get(j)), data);
+      cell_site_list[i].Add(s);
+      temp[i].Add(s);
     }
   }
 }
-
+double CalculateCost(double distance)
+{
+  return Rd*distance;
+}
 void Execute(int cellId)
 { 
   std::cout<<"execute cell "<<cellId<<std::endl;
@@ -338,6 +393,7 @@ void DoTask(Ptr<UAV> u)
   u->UpdateFlightTime(flightTime + visitedTime);
   Simulator::Schedule(Seconds(flightTime), &FindSite, u);
   Simulator::Schedule(Seconds(flightTime + visitedTime), &DoTask, u);
+  Simulator::Schedule(Seconds(flightTime + visitedTime), &SendPacket, u, gw[cellId].Get(0), 10, 1024, 0.2);
   //std::cout<<"ket thuc ham dotask cell "<<cellId<<" uav "<<uavId<<std::endl;
 }
 void NextRound(Ptr<UAV> u)
@@ -364,7 +420,17 @@ int IsFinish()
 {
   for(int i =0 ; i < NUM_CELL; i++)
   {
-    if(finish[i] == 0)
+    if(i == NUM_CELL - 1)
+    {
+      for(int j = 0; j < NUM_UAV; j++)
+      {
+        if(uavState[i][j] == 1)
+        {
+          return 0;
+        }
+      }
+    }
+    else if(finish[i] == 0)
     {
       return 0;
     }
@@ -403,7 +469,8 @@ void StopSimulation()
     utility += cell_site_list[i].GetUtility();
     flightTime += uav[i].CalculateFlightTime();
   }
-  double cost = fliedDistance * Rd;
+  double cost = CalculateCost(fliedDistance);
+  std::cout<<"Iterative strategy R0 = "<<MAX_RESOURCE_PER_UAV<<std::endl;
   std::cout<<"Spanning time: "<<GetNow()<<" s"<<std::endl;
   std::cout<<"Flight time: "<<flightTime<<" s"<<std::endl;
   std::cout<<"Energy: "<<energy/1000000.0<<" MJ"<<std::endl;

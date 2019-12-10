@@ -34,7 +34,7 @@
 /*Added header files*/
 #include "kinematic.h"
 #include "macro_param.h"
-#include "communication.h"
+//#include "communication.h"
 
 using namespace ns3;
 
@@ -56,9 +56,6 @@ int main()
   CalculateCellCenter();
   for(int i = 0; i < NUM_CELL; i++)
   {
-  	// uav[i].Create(NUM_UAV);
-   //  sensor[i].Create(NUM_SENSOR);   
-   //  gw[i].Create(NUM_GW );
   	for(int j = 0; j < NUM_UAV; j++)
     {
       Ptr<UAV> u = CreateObject<UAV>(i, j);
@@ -81,23 +78,12 @@ int main()
     SetupApplication(i);
     UavSend(i);
     SensorSend(i);
-    if(i == 0)
-    {
-      GenerateSensorData(i, 100.0);
-    }
-    else if(i == NUM_CELL-1)
-    {
-      GenerateSensorData(i, 45.0);
-    }
-    else
-    {
-      GenerateSensorData(i, 60.0);
-    }
-    TSP(i);
-    //Execute(i);
+    
   }
+  CreateSite();
   for(int i = 0; i < NUM_CELL; i++)
   {
+    TSP(i);
     Execute(i);
   }
   anim = new AnimationInterface("inter-cell.xml");

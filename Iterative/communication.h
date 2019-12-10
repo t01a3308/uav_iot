@@ -37,6 +37,11 @@ using namespace ns3;
 
 extern TypeId tid;
 extern double dataLoad;
+extern int uavState[NUM_CELL][NUM_UAV];
+extern UAVContainer uav[NUM_CELL];
+extern SensorContainer sensor[NUM_CELL];
+extern GwContainer gw[NUM_CELL];
+extern NodeContainer allNodes[NUM_CELL];
 void SetupCommunication(int cellId);
 void SetupApplication(int cellId);
 void ReceivePacket (Ptr<Socket> socket);
@@ -144,7 +149,10 @@ void UavSend(int cellId)
 {
   for(int i = 0; i < NUM_UAV; i++)
   {
-    Simulator::Schedule(Seconds(i*3),&SendPacket, uav[cellId].Get(i), gw[cellId].Get(0), 5, 1024, 0.2);
+    if(uavState[cellId][i])
+    {
+      Simulator::Schedule(Seconds(i*3),&SendPacket, uav[cellId].Get(i), gw[cellId].Get(0), 1, 1024, 0.2);
+    }
   }
   Simulator::Schedule(Seconds(30), &UavSend, cellId);
 }
@@ -153,7 +161,7 @@ void SensorSend(int cellId)
   Ptr<UniformRandomVariable> rd = CreateObject<UniformRandomVariable>();
   for(int i = 0; i < NUM_SENSOR; i++)
   {
-    Simulator::Schedule(Seconds(rd->GetValue(0, 60)), &SendPacket, sensor[cellId].Get(i), gw[cellId].Get(0), 3, 512, 0.2);
+    Simulator::Schedule(Seconds(rd->GetValue(0, 60)), &SendPacket, sensor[cellId].Get(i), gw[cellId].Get(0), 1, 256, 0.2);
   }
   Simulator::Schedule(Seconds(60*2), &SensorSend, cellId);
 }

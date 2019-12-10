@@ -33,6 +33,7 @@
 #include <math.h>
 #include "macro_param.h"
 #include "handle.h"
+#include "communication.h"
 using namespace ns3;
 
 extern double dataLoad;
@@ -42,9 +43,10 @@ extern SensorContainer sensor[NUM_CELL];
 extern GwContainer gw[NUM_CELL];
 extern NodeContainer allNodes[NUM_CELL];
 extern std::map<Ptr<Node>, double> sensorData[NUM_CELL]; // all data
-//extern std::map<Ptr<Node>, double> highData[NUM_CELL]; // all high data
-//extern std::map<Ptr<Node>, double> taskToDo[NUM_CELL][NUM_UAV]; // all tasks of a uav
-//extern std::queue<std::map<Ptr<Node>, double>> q[NUM_CELL][NUM_UAV];// sequence to do tasks
+//
+int siteData[MAX_SITE_PER_CELL*NUM_CELL];
+int numberOfSites[NUM_CELL-1];
+//
 int appear[MAX_SITE_PER_CELL+1];
 double dist[MAX_SITE_PER_CELL+1][MAX_SITE_PER_CELL+1];
 int x[MAX_SITE_PER_CELL+1];
@@ -70,7 +72,7 @@ void CalculateCellCenter();
 void SetupSensorPosition(int cellId);
 void SetupUavPosition(int cellId);
 void SetupGwPosition(int cellId);
-void GenerateSensorData(int cellId, double maxValue);
+void CreateSite();
 //functions to solve TSP
 void TSP(int cellId);
 int check(int v, int k);
@@ -220,20 +222,70 @@ void SetupGwPosition(int cellId)
     SetPosition(gw[cellId].Get(i), Vector(X[cellId], Y[cellId] + CELL_RADIUS, 0));
   }
 }
-void GenerateSensorData(int cellId, double maxValue)
+void CreateSite()
 {
-
-  std::cout<<"generate sensor data cell "<<cellId<<std::endl;
-  finish[cellId] = 0;
-  Ptr<UniformRandomVariable> rd = CreateObject<UniformRandomVariable>();
-  for(int i = 0; i < NUM_SENSOR; i++)
+  // calculate number of sites for each cell
+  std::cout<<"Calculate number of sites for each cell"<<std::endl;
+  int half = MAX_SITE_PER_CELL/2;
+  if(TOTAL_SITE <= half*NUM_CELL)
   {
-    double data = rd -> GetValue(MIN_VALUE, maxValue);
-    sensorData[cellId][sensor[cellId].Get(i)] = data;
-    if(data > THRESHOLD)
+    int quotient = TOTAL_SITE / NUM_CELL;
+    int remainder = TOTAL_SITE % NUM_CELL;
+    for(int i = 0; i < NUM_CELL - 1; i++)
     {
-      Ptr<SITE> s = CreateObject<SITE>(GetPosition(sensor[cellId].Get(i)), data);
-      cell_site_list[cellId].Add(s);
+      if(i == 0)
+      {
+        numberOfSites[i] = 2*quotient;
+      }
+      else
+      {
+        numberOfSites[i] = quotient;
+      }
+    }
+    int id[] = {0,0,1,2,3,4,5};
+    int k = 0;
+    for(int i = 0; i < remainder; i++)
+    {
+      numberOfSites[id[k]]++;
+      k++;
+    }
+  }
+  else
+  {
+    if(TOTAL_SITE > MAX_SITE_PER_CELL*(NUM_CELL-1))
+    {
+      std::cout<<"Max total site is "<<MAX_SITE_PER_CELL*(NUM_CELL-1)<<std::endl;
+      Simulator::Stop();
+    }
+    else
+    {
+      numberOfSites[0] = MAX_SITE_PER_CELL;
+      int difference = TOTAL_SITE - half*NUM_CELL;
+      int id[] = {1,2,3,4,5};
+      int k = 0;
+      for(int i = 0; i < difference; i++)
+      {
+        numberOfSites[id[k]]++;
+        k++;
+        if(k > 4)
+        {
+          k = 0;
+        }
+      }
+    }
+  }
+  //create site
+  std::cout<<"Creating sites"<<std::endl;
+  finish[NUM_CELL-1] = 1;
+  Ptr<UniformRandomVariable> rd = CreateObject<UniformRandomVariable>();
+  for(int i = 0; i < NUM_CELL - 1; i++)
+  {
+    finish[i] = 0;
+    for(int j = 0; j < numberOfSites[i]; j++)
+    {
+      double data = rd -> GetValue(MIN_VALUE, MAX_VALUE);
+      Ptr<SITE> s = CreateObject<SITE>(GetPosition(sensor[i].Get(j)), data);
+      cell_site_list[i].Add(s);
     }
   }
 }
@@ -521,15 +573,17 @@ void DoTask(Ptr<UAV> u)
   u->UpdateFlightTime(flightTime + visitedTime);
   Simulator::Schedule(Seconds(flightTime), &UAV::UpdateEnergy, u, HANDLING);
   Simulator::Schedule(Seconds(flightTime + visitedTime), &DoTask, u);
+  Simulator::Schedule(Seconds(flightTime + visitedTime), &SendPacket, u, gw[cellId].Get(0), 10, 1024, 0.2);
 }
 void NextRound(Ptr<UAV> u)
 {
   int uavId = u -> GetUavId();
   int cellId = u -> GetCellId();
-  std::cout<<GetNow()<<": next round cell "<<cellId<<", uav "<<uavId<<std::endl;
+  
   uavState[cellId][uavId] = 0;
   if(IsFinish(cellId))
   {
+  	std::cout<<GetNow()<<": cell "<<cellId<<" xong "<<std::endl;
     finish[cellId] = 1;
     if(IsFinish())
     {
@@ -538,6 +592,7 @@ void NextRound(Ptr<UAV> u)
   }
   else
   {
+  	std::cout<<GetNow()<<": next round cell "<<cellId<<", uav "<<uavId<<std::endl;
     Simulator::Schedule(Seconds(60*5), &FindSegment, cellId, uavId);
   }
 }
@@ -545,8 +600,20 @@ int IsFinish()
 {
   for(int i =0 ; i < NUM_CELL; i++)
   {
-    if(finish[i] == 0)
+  	if(i == NUM_CELL - 1)
+  	{
+  		for(int j = 0; j < NUM_UAV; j++)
+  		{
+  			if(uavState[i][j] == 1)
+  			{
+  				std::cout<<"cell "<<i<<" chua xong"<<std::endl;
+  				return 0;
+  			}
+  		}
+  	}
+    else if(finish[i] == 0)
     {
+      std::cout<<"cell "<<i<<" chua xong"<<std::endl;
       return 0;
     }
   }
