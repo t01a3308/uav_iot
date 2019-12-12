@@ -661,6 +661,7 @@ void StopSimulation()
    // std::cout<<"time: "<<t<<std::endl;
   }
   double cost = CalculateCost(fliedDistance);
+  std::cout<<"Inter-cell R0 = "<<MAX_RESOURCE_PER_UAV<<", total site = "<<TOTAL_SITE<<std::endl;
   std::cout<<"Spanning time: "<<GetNow()<<" s"<<std::endl;
   std::cout<<"Flight time: "<<time<<" s"<<std::endl;
   std::cout<<"Energy: "<<energy/1000000.0<<" MJ"<<std::endl;

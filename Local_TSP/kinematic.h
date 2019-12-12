@@ -562,6 +562,7 @@ void StopSimulation()
     flightTime += uav[i].CalculateFlightTime();
   }
   double cost = CalculateCost(fliedDistance);
+  std::cout<<"Local TSP R0 = "<<MAX_RESOURCE_PER_UAV<<", total site = "<<TOTAL_SITE<<std::endl;
   std::cout<<"Spanning time: "<<GetNow()<<" s"<<std::endl;
   std::cout<<"Flight time: "<<flightTime<<" s"<<std::endl;
   std::cout<<"Energy: "<<energy/1000000.0<<" MJ"<<std::endl;
