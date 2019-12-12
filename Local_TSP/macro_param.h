@@ -52,3 +52,6 @@
 #define HANDLING 250.0
 //
 #define PI 3.14159
+//TSP
+#define MAX 2097152// 2^(MAX_SITE_PER_CELL+1)
+//#define INT_MAX 999999

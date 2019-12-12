@@ -48,15 +48,14 @@ extern std::map<Ptr<Node>, double> sensorData[NUM_CELL]; // all data
 int siteData[MAX_SITE_PER_CELL*NUM_CELL];
 int numberOfSites[NUM_CELL-1];
 //variables for TSP
-int appear[MAX_SITE_PER_CELL+1];
 double dist[MAX_SITE_PER_CELL+1][MAX_SITE_PER_CELL+1];
-int x[MAX_SITE_PER_CELL+1];
-int path[MAX_SITE_PER_CELL+1];
-double dmin;
-double result;
-double MIN;
-int finish[NUM_CELL];
+std::vector <int> path;
+int VISITED_ALL; // 
+double dp[MAX][MAX_SITE_PER_CELL+1]; //
+typedef std::pair < double, std::vector<int> > myPair;
+std::map < std::pair<int, int>, std::vector<int> > myMap;
 //
+int finish[NUM_CELL];
 int uavState[NUM_CELL][NUM_UAV];
 SiteList cell_site_list[NUM_CELL];// all sites
 queue < Ptr<SITE> > sortedSites[NUM_CELL]; // depend on urgency
@@ -75,10 +74,7 @@ void SetupGwPosition(int cellId);
 double CalculateCost(double distance);
 void CreateSite();
 //functions to solve TSP
-void TSP(int cellId, int uavId);
-int check(int v, int k);
-void solution(int n);
-void TRY(int k, int n);
+myPair TSP(int mask, int current, int n);
 //
 void Execute(int cellId);
 void SortSite(int cellId); //depend on urgency
@@ -293,17 +289,26 @@ double CalculateCost(double distance)
 {
   return Rd*distance;
 }
-void TSP(int cellId, int uavId)
+void LocalTSP(int cellId, int uavId)
 {
   /* Calculate distance matrix for TSP. Sites to visit are determined 
   according to algorithm "back tracking" */
   std::cout<<"TSP cell "<<cellId<<", uav "<<uavId<<std::endl;
+  path.clear();
   int n = sitesOfUav[cellId][uavId].GetSize();
   std::cout<<"num site: "<<n<<std::endl;
   if(n == 0)
   {
     return ;
   }
+  for(int i = 0; i < (1<<(n+1)); i++)
+  {
+    for(int j = 0; j < n+1; j++)
+    {
+      dp[i][j] = -1;
+    }
+   }
+  VISITED_ALL = (1<<(n+1)) - 1;
   Vector pos[n];  
   for (int i = 0; i < n; i ++)
   {
@@ -311,9 +316,7 @@ void TSP(int cellId, int uavId)
     pos[i] = sitesOfUav[cellId][uavId].Get(i)->GetSitePosition();
   }
   std::cout<<std::endl;
-  dmin = 999999;
-  result = 0;
-  MIN = 9999999;
+  
   dist[0][0] = 0;
   for(int k1 = 1; k1 <= n; k1++)
   {
@@ -321,16 +324,12 @@ void TSP(int cellId, int uavId)
     for(int k2 = 1; k2 <= n; k2++)
     {
       dist[k1][k2] = CalculateDistance(pos[k1-1], pos[k2-1]);
-     // std::cout<<"dist["<<k1<<"]["<<k2<<" = "<<dist[k1][k2]<<std::endl;
-      if(dist[k1][k2] < dmin && dist[k1][k2] > 0)
-      {
-        dmin = dist[k1][k2];
-      }
+
     }
-    appear[k1] = 0;
   }
   //Solve TSP
-  TRY(1, n);  
+  myPair m = TSP(1, 0, n);
+  path = m.second; 
   std::cout<<"path: "<<std::endl;
   
   for(int i = 1; i <= n; i++)
@@ -338,54 +337,50 @@ void TSP(int cellId, int uavId)
     std::cout<<sitesOfUav[cellId][uavId].Get(path[i])->GetId()<<" ";
   }
   std::cout<<std::endl;
-  std::cout<<"length : "<<MIN<<std::endl;
+  std::cout<<"length : "<<m.first<<std::endl;
   return ;
 }
-int check(int v, int k)
-{
-  return !appear[v]; //still not visited by UAV in TRY
-}
-void solution(int n)
-{
-	/* check if the current path is shorter than the previous, given
-	the same sites */
-  double rs = result + dist[x[n]][0];
-  //std::cout<<"rs = "<<rs<<std::endl;
-  if(rs < MIN)
+myPair TSP(int mask,int current, int n) // 
+{   
+  std::vector <int> v;
+  v.push_back(current-1);
+  if(mask==VISITED_ALL)
   {
-    MIN = rs;
-    for(int i = 0; i <= n; i++)
-    {
-      path[i] = x[i] - 1;
-    }
+    return std::make_pair(dist[current][0], v);
   }
-}
-void TRY(int k, int n)
-{
-	/*k: next site to visit; n: total sites */
-  for(int v = 1; v <= n; v++)
-  {   
-    if(check(v, k)) //is v still not visited?
-    {     
-      x[k] = v; // store list of sites to visit
-      result += dist[x[k-1]][x[k]];
-      appear[v] = 1; // yes, already visited
-      if(k == n )
+  if(dp[mask][current]!=-1)
+  {
+    return std::make_pair(dp[mask][current], myMap[std::make_pair(mask, current)]);
+  }
+   //Now from current node, we will try to go to every other node and take the min ans
+   
+  int ans = INT_MAX;
+  //Visit all the unvisited cities and take the best route
+  for(int k = 0; k < (n+1); k++)
+  {
+    if((mask & (1<<k)) == 0) // k haven't been visited
+    {
+      int newMask = mask | (1<<k);
+      myPair m = TSP(newMask, k, n);
+      double newAns = dist[current][k] + m.first;           
+      if(newAns < ans)
       {
-        solution(n);
-      }
-      else
-      {
-        if(result + dmin*(n-k+1) < MIN)
-        {       
-          TRY(k + 1, n);
+        ans = newAns;
+        int first = v[0];
+        v.clear();
+        v.push_back(first);
+        std::vector<int> v1 = m.second;
+        for(int i = 0; i < (int)v1.size(); i++)
+        {
+          v.push_back(v1[i]);
         }
       }
-      appear[v] = 0;
-      result -= dist[x[k-1]][x[k]];
     }
-  }
-}
+  }      
+  dp[mask][current] = ans;
+  myMap[std::make_pair(mask, current)] = v;
+  return std::make_pair(ans, v);
+} 
 void Execute(int cellId)
 { 
   std::cout<<"execute cell "<<cellId<<std::endl;
@@ -451,7 +446,7 @@ void SiteAssignment(int cellId, int uavId)
   {
     uavState[cellId][uavId] = 1;
   }
-  TSP(cellId, uavId);
+  LocalTSP(cellId, uavId);
   int n = sitesOfUav[cellId][uavId].GetSize();
   Ptr<UAV> u = uav[cellId].GetUav(uavId);
   for(int i = 1; i <= n; i++)
