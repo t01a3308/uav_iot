@@ -82,7 +82,8 @@ int main()
   CreateSite();
   for(int i = 0; i < NUM_CELL; i++)
   {
-    TSP(i);
+    GlobalTSP(i);
+   // TSP(i);
     Execute(i);
   }
   anim = new AnimationInterface("global_tsp.xml");
