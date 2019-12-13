@@ -32,7 +32,7 @@
 #include <iostream>
 #include <math.h>
 #include "macro_param.h"
-#include "handle.h"
+//#include "handle.h"
 #include "communication.h"
 using namespace ns3;
 
@@ -326,6 +326,12 @@ void FindSite(Ptr<UAV> u)
       std::cout<<GetNow()<<": cell "<<cellId<<", uav "<<uavId<<" het resource"<<std::endl;
       return;
     }
+    // uav send to site
+    dataLoad += 3*UAV_PACKET_SIZE;
+    u -> IncreaseEnergy(3*ENERGY_SEND);
+    //site reply uav
+    dataLoad += 3*UAV_PACKET_SIZE;
+    u -> IncreaseEnergy(3*ENERGY_RECEIVE);
     int status = s->GetStatus();
     if(status == 0)
     {
@@ -333,8 +339,7 @@ void FindSite(Ptr<UAV> u)
       s -> AddBidder(u, distance[id]);
       s -> SetStatus(1);
       u -> AddSite(s);
-      flag = 1;
-      
+      flag = 1;      
       return;
     }
     else
@@ -344,12 +349,15 @@ void FindSite(Ptr<UAV> u)
         std::cout<<GetNow()<<": cell "<<cellId<<", uav "<<uavId<<" win site "<<s->GetId();
         Ptr<UAV> bd = s -> GetBidder();
         std::cout<<" from uav "<<bd->GetUavId()<<std::endl;
+        // site send to loser
+        dataLoad += 3*UAV_PACKET_SIZE;
+        bd -> IncreaseEnergy(3*ENERGY_RECEIVE);
+        //
         s -> RemoveBidder();
         s -> AddBidder(u, distance[id]);
         bd -> RemoveSite();
         u -> AddSite(s);
-        flag = 1;
-        
+        flag = 1;        
         return;
       }
       else
@@ -380,6 +388,7 @@ void DoTask(Ptr<UAV> u)
     Simulator::Schedule(Seconds(flightTime), &UAV::UpdateEnergy, u, STOP); 
     return;
   }
+  uavState[cellId][uavId] = 1;
   Ptr<SITE> s = u->GetSite();
   u -> SetResource(u -> GetResource() - s -> GetResource());
   std::cout<<GetNow()<<": cell "<<cellId<<", uav "<<uavId<<" go to site "<<s->GetId()<<std::endl;
@@ -393,7 +402,7 @@ void DoTask(Ptr<UAV> u)
   u->UpdateFlightTime(flightTime + visitedTime);
   Simulator::Schedule(Seconds(flightTime), &FindSite, u);
   Simulator::Schedule(Seconds(flightTime + visitedTime), &DoTask, u);
-  Simulator::Schedule(Seconds(flightTime + visitedTime), &SendPacket, u, gw[cellId].Get(0), 10, 1024, 0.2);
+  Simulator::Schedule(Seconds(flightTime + visitedTime), &SendPacket, u, gw[cellId].Get(0), NUM_PACKET_SITE, UAV_PACKET_SIZE, INTERVAL_BETWEEN_TWO_PACKETS);
   //std::cout<<"ket thuc ham dotask cell "<<cellId<<" uav "<<uavId<<std::endl;
 }
 void NextRound(Ptr<UAV> u)
@@ -413,7 +422,7 @@ void NextRound(Ptr<UAV> u)
   else
   {
     u -> SetResource(MAX_RESOURCE_PER_UAV);
-    Simulator::Schedule(Seconds(60*5), &DoTask, u);
+    Simulator::Schedule(Seconds(60*INTERVAL_BETWEEN_TWO_ROUNDS), &DoTask, u);
   }
 }
 int IsFinish()

@@ -32,7 +32,7 @@
 #include <iostream>
 #include <math.h>
 #include "macro_param.h"
-#include "handle.h"
+//#include "handle.h"
 #include "communication.h"
 using namespace ns3;
 
@@ -411,6 +411,15 @@ void InterCell(int cellId)
   vector < Ptr<UAV> > neighbor;
   vector <int> segmentId;
   vector < pair<Ptr<UAV>, int> > result;
+  // send to other cells to find free cells
+  dataLoad += 6 * 1 * UAV_PACKET_SIZE;
+  // reply
+  dataLoad += 6 * 1 * UAV_PACKET_SIZE;
+  // only 1 free cell
+  // send data to  free cell;
+  dataLoad += 10 * UAV_PACKET_SIZE;
+  // reply result
+  dataLoad += 3 * UAV_PACKET_SIZE;
   for(int i = 0; i < numSegment[cellId]; i++)
   {
     std::cout<<"segment id"<<std::endl;
@@ -568,7 +577,7 @@ void DoTask(Ptr<UAV> u)
   u->UpdateFlightTime(flightTime + visitedTime);
   Simulator::Schedule(Seconds(flightTime), &UAV::UpdateEnergy, u, HANDLING);
   Simulator::Schedule(Seconds(flightTime + visitedTime), &DoTask, u);
-  Simulator::Schedule(Seconds(flightTime + visitedTime), &SendPacket, u, gw[cellId].Get(0), 10, 1024, 0.2);
+  Simulator::Schedule(Seconds(flightTime + visitedTime), &SendPacket, u, gw[cellId].Get(0), NUM_PACKET_SITE, UAV_PACKET_SIZE, INTERVAL_BETWEEN_TWO_PACKETS);
 }
 void NextRound(Ptr<UAV> u)
 {
@@ -588,7 +597,7 @@ void NextRound(Ptr<UAV> u)
   else
   {
   	std::cout<<GetNow()<<": next round cell "<<cellId<<", uav "<<uavId<<std::endl;
-    Simulator::Schedule(Seconds(60*5), &FindSegment, cellId, uavId);
+    Simulator::Schedule(Seconds(60*INTERVAL_BETWEEN_TWO_ROUNDS), &FindSegment, cellId, uavId);
   }
 }
 int IsFinish()

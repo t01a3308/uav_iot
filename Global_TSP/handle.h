@@ -169,6 +169,7 @@ public:
 	int GetCellId();
 	int GetUavId();
 	void UpdateEnergy(double new_power);
+	void IncreaseEnergy(double delta);
 	void UpdateFliedDistance(double distance);
 	double GetConsumedEnergy();
 	double GetFliedDistance();
@@ -198,6 +199,10 @@ void UAV::UpdateEnergy(double new_power)
 	consumed_energy += power*(now - t_old);
 	t_old = now;
 	power = new_power;
+}
+void UAV::IncreaseEnergy(double delta)
+{
+	consumed_energy += delta;
 }
 void UAV::UpdateFliedDistance(double distance)
 {

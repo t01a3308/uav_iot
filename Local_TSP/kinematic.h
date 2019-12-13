@@ -33,7 +33,7 @@
 #include <math.h>
 #include <queue>
 #include "macro_param.h"
-#include "handle.h"
+//#include "handle.h"
 #include "communication.h"
 using namespace ns3;
 using namespace std;
@@ -483,7 +483,7 @@ void DoTask(int cellId, int uavId)
   u->UpdateFlightTime(flightTime + visitedTime);
   Simulator::Schedule(Seconds(flightTime), &UAV::UpdateEnergy, u, HANDLING);
   Simulator::Schedule(Seconds(flightTime + visitedTime), &DoTask, cellId, uavId);
-  Simulator::Schedule(Seconds(flightTime + visitedTime), &SendPacket, u, gw[cellId].Get(0), 10, 1024, 0.2);
+  Simulator::Schedule(Seconds(flightTime + visitedTime), &SendPacket, u, gw[cellId].Get(0), NUM_PACKET_SITE, UAV_PACKET_SIZE, INTERVAL_BETWEEN_TWO_PACKETS);
   //std::cout<<"ket thuc ham dotask cell "<<cellId<<" uav "<<uavId<<std::endl;
 }
 void NextRound(int cellId, int uavId)
@@ -500,7 +500,7 @@ void NextRound(int cellId, int uavId)
   }
   else
   {
-    Simulator::Schedule(Seconds(60*5), &SiteAssignment, cellId, uavId);
+    Simulator::Schedule(Seconds(60*INTERVAL_BETWEEN_TWO_ROUNDS), &SiteAssignment, cellId, uavId);
   }
 }
 int IsFinish()

@@ -32,7 +32,7 @@
 #define TOTAL_SITE 50
 #define MAX_SITE_PER_CELL 20
 #define VUAV 5.0 // m/s
-#define MAX_RESOURCE_PER_UAV 250.0
+#define MAX_RESOURCE_PER_UAV 500.0
 //sensor data
 #define MIN_VALUE 50.0
 #define MAX_VALUE 100.0
@@ -45,13 +45,30 @@
 #define VISITED_TIME_FACTOR 2.0
 #define MIN_URGENCY 100
 #define MAX_URGENCY 200
-//power factor
+//power 
 #define STOP 0.0
-//#define HOVERING 100.0
 #define FLYING 150.0
 #define HANDLING 250.0
 //
 #define PI 3.14159
 //TSP
 #define MAX 2097152// 2^(MAX_SITE_PER_CELL+1)
-//#define INT_MAX 999999
+// parameters for communication
+// interval to send periodic packets
+#define UAV_INTERVAL 1 // MINUTE
+#define SENSOR_INTERVAL 3 // minute
+// packet size
+#define UAV_PACKET_SIZE 1024 //byte
+#define SENSOR_PACKET_SIZE 256 // byte
+// number of periodic packets send to gateway
+#define UAV_NUM_PACKET 3 // 
+#define SENSOR_NUM_PACKET 1//
+//
+#define NUM_PACKET_SITE 10 // number of packets send to gateway when uav finish task at a site
+//
+#define INTERVAL_BETWEEN_TWO_PACKETS 0.001// SECOND
+//
+#define INTERVAL_BETWEEN_TWO_ROUNDS 5 //minute
+// energy when uav send or receive 
+#define ENERGY_SEND 0.1 // j
+#define ENERGY_RECEIVE 0.01
