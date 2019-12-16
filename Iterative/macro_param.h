@@ -29,17 +29,17 @@
 #define Y0 500.0 //
 #define CELL_RADIUS 500.0 // cell radius
 //
-#define TOTAL_SITE 50
+#define TOTAL_SITE 30
 #define MAX_SITE_PER_CELL 20
 #define VUAV 5.0 // m/s
-#define MAX_RESOURCE_PER_UAV 500.0
+#define MAX_RESOURCE_PER_UAV 300.0
 //sensor data
 #define MIN_VALUE 50.0
 #define MAX_VALUE 100.0
 //#define THRESHOLD 50.0
 //
 #define K_FACTOR 1
-#define Rd 2.0
+#define Rd 10.0
 //#define ALPHA_FACTOR 1
 #define RESOURCE_FACTOR 1.0
 #define VISITED_TIME_FACTOR 2.0
