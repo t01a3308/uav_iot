@@ -223,53 +223,40 @@ void SetupGwPosition(int cellId)
 void CreateSite()
 {
   // calculate number of sites for each cell
-  std::cout<<"Calculate number of sites for each cell"<<std::endl;
-  int half = MAX_SITE_PER_CELL/2;
-  if(TOTAL_SITE <= half*NUM_CELL)
+  
+  if(TOTAL_SITE > 80)
   {
-    int quotient = TOTAL_SITE / NUM_CELL;
-    int remainder = TOTAL_SITE % NUM_CELL;
-    for(int i = 0; i < NUM_CELL - 1; i++)
+    std::cout<<"Max total site is "<<80<<std::endl;
+    Simulator::Stop();
+  }
+  std::cout<<"Calculate number of sites for each cell"<<std::endl;
+  int temp = TOTAL_SITE;
+  int k = 0, id = 0;
+  while(temp > 0)
+  {
+    if(k % 2 != 0)
     {
-      if(i == 0)
+      if(id == 0)
       {
-        numberOfSites[i] = 2*quotient;
+        numberOfSites[id] += 2;
+        temp -= 2;
       }
       else
       {
-        numberOfSites[i] = quotient;
-      }
-    }
-    int id[] = {0,0,1,2,3,4,5};
-    int k = 0;
-    for(int i = 0; i < remainder; i++)
-    {
-      numberOfSites[id[k]]++;
-      k++;
-    }
-  }
-  else
-  {
-    if(TOTAL_SITE > MAX_SITE_PER_CELL*(NUM_CELL-1))
-    {
-      std::cout<<"Max total site is "<<MAX_SITE_PER_CELL*(NUM_CELL-1)<<std::endl;
-      Simulator::Stop();
+        numberOfSites[id]++;
+        temp--;
+      }     
     }
     else
     {
-      numberOfSites[0] = MAX_SITE_PER_CELL;
-      int difference = TOTAL_SITE - half*NUM_CELL;
-      int id[] = {1,2,3,4,5};
-      int k = 0;
-      for(int i = 0; i < difference; i++)
-      {
-        numberOfSites[id[k]]++;
-        k++;
-        if(k > 4)
-        {
-          k = 0;
-        }
-      }
+      numberOfSites[id]++;
+      temp --;
+    }
+    id++;
+    if(id == NUM_CELL-1)
+    {
+      id = 0;
+      k++;
     }
   }
   //create site
@@ -420,21 +407,25 @@ void InterCell(int cellId)
   dataLoad += 10 * UAV_PACKET_SIZE;
   // reply result
   dataLoad += 3 * UAV_PACKET_SIZE;
+  
   for(int i = 0; i < numSegment[cellId]; i++)
   {
-    std::cout<<"segment id"<<std::endl;
     segmentId.push_back(i);
   }
+  
   for(int i = 0; i < NUM_UAV; i++)
   {
-    std::cout<<"neighbor"<<std::endl;
     neighbor.push_back(uav[NUM_CELL-1].GetUav(i));
   }
   int n1 = numSegment[cellId] - NUM_UAV;//number of segments to be bidded
-  std::cout<<"find helper"<<std::endl;
+  int n2 = neighbor.size();
+  if(n1 > n2)
+  {
+    n1 = n2;
+  }
   while(n1 > 0)
   {
-    int n = neighbor.size(); // number of UAV in bid
+    int n = neighbor.size(); // 
     int size = (int)segmentId.size();
     double benefit[n][MAX_SITE_PER_CELL];
     for(int i = 0; i < n; i++)
@@ -457,7 +448,6 @@ void InterCell(int cellId)
     RemoveValueInVector<int>(segmentId, id);
     n1--;
   }
-  std::cout<<"neighbor do task"<<std::endl;
   for(int i = 0; i < (int)result.size(); i++)
   {
     Ptr<UAV> u = result[i].first;
@@ -470,7 +460,6 @@ void InterCell(int cellId)
     mark[cellId][id] = 1;
     DoTask(u);
   }
-  std::cout<<"do task cell "<<cellId<<std::endl;
   for(int i = 0 ; i < NUM_UAV; i++)
   {
     FindSegment(cellId, i);      
@@ -564,7 +553,6 @@ void DoTask(Ptr<UAV> u)
     u -> UpdateFliedDistance(VUAV*flightTime);
     Simulator::Schedule(Seconds(flightTime), &NextRound, u);   
     Simulator::Schedule(Seconds(flightTime), &UAV::UpdateEnergy, u, STOP); 
-
     return;
   }
   Ptr<SITE> s = u->GetSite();
@@ -582,9 +570,9 @@ void DoTask(Ptr<UAV> u)
 void NextRound(Ptr<UAV> u)
 {
   int uavId = u -> GetUavId();
-  int cellId = u -> GetCellId();
-  
+  int cellId = u -> GetCellId();  
   uavState[cellId][uavId] = 0;
+  std::cout<<GetNow()<<": cell "<<cellId<<", uav "<<uavId<<" goi ham finish"<<std::endl;
   if(IsFinish(cellId))
   {
   	std::cout<<GetNow()<<": cell "<<cellId<<" xong "<<std::endl;

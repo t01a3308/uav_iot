@@ -209,53 +209,40 @@ void SetupGwPosition(int cellId)
 void CreateSite()
 {
   // calculate number of sites for each cell
-  std::cout<<"Calculate number of sites for each cell"<<std::endl;
-  int half = MAX_SITE_PER_CELL/2;
-  if(TOTAL_SITE <= half*NUM_CELL)
+  
+  if(TOTAL_SITE > 80)
   {
-    int quotient = TOTAL_SITE / NUM_CELL;
-    int remainder = TOTAL_SITE % NUM_CELL;
-    for(int i = 0; i < NUM_CELL - 1; i++)
+    std::cout<<"Max total site is "<<80<<std::endl;
+    Simulator::Stop();
+  }
+  std::cout<<"Calculate number of sites for each cell"<<std::endl;
+  int temp = TOTAL_SITE;
+  int k = 0, id = 0;
+  while(temp > 0)
+  {
+    if(k % 2 != 0)
     {
-      if(i == 0)
+      if(id == 0)
       {
-        numberOfSites[i] = 2*quotient;
+        numberOfSites[id] += 2;
+        temp -= 2;
       }
       else
       {
-        numberOfSites[i] = quotient;
-      }
-    }
-    int id[] = {0,0,1,2,3,4,5};
-    int k = 0;
-    for(int i = 0; i < remainder; i++)
-    {
-      numberOfSites[id[k]]++;
-      k++;
-    }
-  }
-  else
-  {
-    if(TOTAL_SITE > MAX_SITE_PER_CELL*(NUM_CELL-1))
-    {
-      std::cout<<"Max total site is "<<MAX_SITE_PER_CELL*(NUM_CELL-1)<<std::endl;
-      Simulator::Stop();
+        numberOfSites[id]++;
+        temp--;
+      }     
     }
     else
     {
-      numberOfSites[0] = MAX_SITE_PER_CELL;
-      int difference = TOTAL_SITE - half*NUM_CELL;
-      int id[] = {1,2,3,4,5};
-      int k = 0;
-      for(int i = 0; i < difference; i++)
-      {
-        numberOfSites[id[k]]++;
-        k++;
-        if(k > 4)
-        {
-          k = 0;
-        }
-      }
+      numberOfSites[id]++;
+      temp --;
+    }
+    id++;
+    if(id == NUM_CELL-1)
+    {
+      id = 0;
+      k++;
     }
   }
   //create site
@@ -270,7 +257,6 @@ void CreateSite()
       double data = rd -> GetValue(MIN_VALUE, MAX_VALUE);
       Ptr<SITE> s = CreateObject<SITE>(GetPosition(sensor[i].Get(j)), data);
       cell_site_list[i].Add(s);
-      temp[i].Add(s);
     }
   }
 }
