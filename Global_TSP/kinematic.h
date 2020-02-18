@@ -31,6 +31,7 @@
 #include "ns3/yans-wifi-helper.h"
 #include <iostream>
 #include <math.h>
+#include <list>
 #include "macro_param.h"
 //#include "handle.h"
 #include "communication.h"
@@ -268,7 +269,7 @@ void CreateSite()
     for(int j = 0; j < numberOfSites[i]; j++)
     {
       double data = rd -> GetValue(MIN_VALUE, MAX_VALUE);
-      Ptr<SITE> s = CreateObject<SITE>(GetPosition(sensor[i].Get(j)), data);
+      Ptr<SITE> s = CreateObject<SITE>(GetPosition(sensor[i].Get(j)), data, j);
       cell_site_list[i].Add(s);
     }
   }
@@ -280,7 +281,7 @@ double CalculateCost(double distance)
 void GlobalTSP(int cellId)
 {
   /* Calculate distance matrix for TSP. Sites to visit are determined 
-  according to algorithm "back tracking" */
+  according to algorithm "dynamic programming" */
   std::cout<<"TSP cell "<<cellId<<std::endl;
   int n = cell_site_list[cellId].GetSize();
   if(n == 0)
@@ -387,26 +388,107 @@ void DivideSitesIntoSegment(int cellId)
     numSegment[cellId] = 0;
     return;
   }
-  numSegment[cellId] = 1;
-  int id = 0;
-  double resource = 0;
+  double res = 0;
   for(int i = 0; i < totalSite; i++)
   {
-    //std::cout<<i<<std::endl;
-    Ptr<SITE> s = cell_site_list[cellId].Get(path[cellId][i + 1]);
-    //std::cout<<s<<std::endl;
-    double siteResource = s -> GetResource();
-   // std::cout<<siteResource<<std::endl;
-    resource += siteResource;
-    if(resource > MAX_RESOURCE_PER_UAV)
+    Ptr<SITE> s = cell_site_list[cellId].Get(i);
+    res += s->GetResource();
+  }
+  if(res > MAX_RESOURCE_PER_UAV*NUM_UAV)
+  {
+    numSegment[cellId] = 1;
+    int id = 0;
+    std::cout<<"segment 0: ";
+    double resource = 0;
+    for(int i = 0; i < totalSite; i++)
     {
-      resource = siteResource;
-      numSegment[cellId]++;
-      id++;
+    //std::cout<<i<<std::endl;
+      Ptr<SITE> s = cell_site_list[cellId].Get(path[cellId][i + 1]);
+
+    //std::cout<<s<<std::endl;
+      double siteResource = s -> GetResource();
+   // std::cout<<siteResource<<std::endl;
+      resource += siteResource;
+      if(resource > MAX_RESOURCE_PER_UAV)
+      {
+        resource = siteResource;
+        numSegment[cellId]++;
+        id++;
+        std::cout<<std::endl;
+        std::cout<<"segment "<<id<<": ";
+        std::cout<<path[cellId][i+1]<<" ";
+        segment[cellId][id].Add(s);
+        continue;
+      }
       segment[cellId][id].Add(s);
-      continue;
+      std::cout<<path[cellId][i+1]<<" ";
     }
-    segment[cellId][id].Add(s);
+    std::cout<<std::endl;
+  }
+  else
+  {
+    std::list<int> list;
+    int step = totalSite/NUM_UAV;
+    int remainder = totalSite - step*NUM_UAV;
+    SiteList sl[totalSite];
+    for(int i = 0; i < totalSite; i++)
+    {
+      list.push_back(path[cellId][i+1]);
+    }
+    for(int i = 0; i < totalSite; i++)
+    {    
+      std::cout<<"segment "<<i<<": ";
+      for(int j = 0; j < step; j++)
+      {
+        if(list.size() == 0)
+        {
+          break;
+        }
+        int siteId = GetValue<int>(list, 0);
+        Ptr<SITE> s = cell_site_list[cellId].Get(siteId);
+        if(sl[i].GetResource() + s->GetResource() < MAX_RESOURCE_PER_UAV)
+        {
+          std::cout<<siteId<<" ";
+          sl[i].Add(s);
+          list.pop_front();
+          if(j == step - 1)
+          {
+            if(remainder > 0)
+            {
+              int siteId1 = GetValue<int>(list, 0);
+              Ptr<SITE> s1 = cell_site_list[cellId].Get(siteId1);
+              if(sl[i].GetResource() + s1->GetResource() < MAX_RESOURCE_PER_UAV)
+              {
+                std::cout<<siteId1<<" ";
+                sl[i].Add(s);
+                list.pop_front();
+                remainder--;
+              }
+            }
+          }
+        }
+        else
+        {
+          break;
+        }
+      }
+      std::cout<<std::endl;
+    }
+    numSegment[cellId] = 0;
+    for(int i = 0; i < totalSite; i++)
+    {
+      if(sl[i].GetSize() == 0)
+      {
+        break;
+      }
+      numSegment[cellId]++;
+      for(int j = 0; j < (int)sl[i].GetSize(); j++)
+      {
+        Ptr<SITE> s = sl[i].Get(j);
+        segment[cellId][i].Add(s);
+      }
+      sl[i].Clear();
+    }
   }
   for(int i = 0; i < numSegment[cellId]; i++)
   {

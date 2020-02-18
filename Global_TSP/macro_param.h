@@ -32,7 +32,7 @@
 #define TOTAL_SITE 80
 #define MAX_SITE_PER_CELL 20
 #define VUAV 5.0 // m/s
-#define MAX_RESOURCE_PER_UAV 250.0
+#define MAX_RESOURCE_PER_UAV 5500.0
 //sensor data
 #define MIN_VALUE 50.0
 #define MAX_VALUE 100.0

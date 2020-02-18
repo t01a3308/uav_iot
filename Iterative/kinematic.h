@@ -216,27 +216,27 @@ void CreateSite()
     Simulator::Stop();
   }
   std::cout<<"Calculate number of sites for each cell"<<std::endl;
-  int temp = TOTAL_SITE;
+  int t = TOTAL_SITE;
   int k = 0, id = 0;
-  while(temp > 0)
+  while(t > 0)
   {
     if(k % 2 != 0)
     {
       if(id == 0)
       {
         numberOfSites[id] += 2;
-        temp -= 2;
+        t -= 2;
       }
       else
       {
         numberOfSites[id]++;
-        temp--;
+        t--;
       }     
     }
     else
     {
       numberOfSites[id]++;
-      temp --;
+      t --;
     }
     id++;
     if(id == NUM_CELL-1)
@@ -251,12 +251,14 @@ void CreateSite()
   Ptr<UniformRandomVariable> rd = CreateObject<UniformRandomVariable>();
   for(int i = 0; i < NUM_CELL - 1; i++)
   {
+    std::cout<<"cell "<<i<<" has "<<numberOfSites[i]<<" sites"<<std::endl;
     finish[i] = 0;
     for(int j = 0; j < numberOfSites[i]; j++)
     {
       double data = rd -> GetValue(MIN_VALUE, MAX_VALUE);
       Ptr<SITE> s = CreateObject<SITE>(GetPosition(sensor[i].Get(j)), data);
       cell_site_list[i].Add(s);
+      temp[i].Add(s);
     }
   }
 }
