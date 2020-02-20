@@ -402,12 +402,8 @@ void DivideSitesIntoSegment(int cellId)
     double resource = 0;
     for(int i = 0; i < totalSite; i++)
     {
-    //std::cout<<i<<std::endl;
       Ptr<SITE> s = cell_site_list[cellId].Get(path[cellId][i + 1]);
-
-    //std::cout<<s<<std::endl;
       double siteResource = s -> GetResource();
-   // std::cout<<siteResource<<std::endl;
       resource += siteResource;
       if(resource > MAX_RESOURCE_PER_UAV)
       {

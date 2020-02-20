@@ -60,6 +60,9 @@ int uavState[NUM_CELL][NUM_UAV];
 SiteList cell_site_list[NUM_CELL];// all sites
 queue < Ptr<SITE> > sortedSites[NUM_CELL]; // depend on urgency
 SiteList sitesOfUav[NUM_CELL][NUM_UAV];// sites uav will visit
+SiteList segment[NUM_CELL][MAX_SITE_PER_CELL];
+int numSegment[NUM_CELL];
+int mark[NUM_CELL][MAX_SITE_PER_CELL];
 //
 Vector GetPosition(Ptr<Node> node);
 void SetPosition(Ptr<Node> node, Vector pos);
@@ -78,7 +81,8 @@ myPair TSP(int mask, int current, int n);
 //
 void Execute(int cellId);
 void SortSite(int cellId); //depend on urgency
-void SiteAssignment(int cellId, int uavId);
+void DivideSitesIntoSegment(int cellId);
+void FindSegment(int cellId, int uavId);
 int CalculateNumberOfSites(int cellId, int uavId);
 void DoTask(int cellId, int uavId);
 void NextRound(int cellId, int uavId);
@@ -267,7 +271,7 @@ void CreateSite()
     for(int j = 0; j < numberOfSites[i]; j++)
     {
       double data = rd -> GetValue(MIN_VALUE, MAX_VALUE);
-      Ptr<SITE> s = CreateObject<SITE>(GetPosition(sensor[i].Get(j)), data);
+      Ptr<SITE> s = CreateObject<SITE>(GetPosition(sensor[i].Get(j)), data, j);
       cell_site_list[i].Add(s);
     }
   }
@@ -311,14 +315,12 @@ void LocalTSP(int cellId, int uavId)
     for(int k2 = 1; k2 <= n; k2++)
     {
       dist[k1][k2] = CalculateDistance(pos[k1-1], pos[k2-1]);
-
     }
   }
   //Solve TSP
   myPair m = TSP(1, 0, n);
   path = m.second; 
   std::cout<<"path: "<<std::endl;
-  
   for(int i = 1; i <= n; i++)
   {
     std::cout<<sitesOfUav[cellId][uavId].Get(path[i])->GetId()<<" ";
@@ -376,9 +378,10 @@ void Execute(int cellId)
   {
     uavState[cellId][i] = 0;
   }
+  DivideSitesIntoSegment(cellId);
   for(int i = 0 ; i < NUM_UAV; i++)
   {
-    SiteAssignment(cellId, i);
+    FindSegment(cellId, i);
   }  
 }
 void SortSite(int cellId)
@@ -410,24 +413,137 @@ void SortSite(int cellId)
     inQueue[id] = 1;
   }
 }
-void SiteAssignment(int cellId, int uavId)
+
+void DivideSitesIntoSegment(int cellId)
 {
   int totalSite = sortedSites[cellId].size();
   if(totalSite == 0)
   {
+    numSegment[cellId] = 0;
     return;
   }
-  double resource = 0;
-  for(int i = 0; i < totalSite; i++)
+  if(cell_site_list[cellId].GetResource() > MAX_RESOURCE_PER_UAV*NUM_UAV)
   {
-    Ptr<SITE> s = sortedSites[cellId].front();
-    resource += s -> GetResource();
-    if(resource > MAX_RESOURCE_PER_UAV)
+    numSegment[cellId] = 1;
+    int id = 0;
+    std::cout<<"segment 0: ";
+    double resource = 0;
+    for(int i = 0; i < totalSite; i++)
     {
-      break;
+      Ptr<SITE> s = sortedSites[cellId].front();
+      double siteResource = s -> GetResource();
+      resource += siteResource;
+      if(resource > MAX_RESOURCE_PER_UAV)
+      {
+        resource = siteResource;
+        numSegment[cellId]++;
+        id++;
+        std::cout<<std::endl;
+        std::cout<<"segment "<<id<<": ";
+        std::cout<<s->GetId()<<" ";
+        segment[cellId][id].Add(s);
+        sortedSites[cellId].pop();
+        continue;
+      }
+      segment[cellId][id].Add(s);
+      sortedSites[cellId].pop();
+      std::cout<<s->GetId()<<" ";
     }
-    sitesOfUav[cellId][uavId].Add(s);
-    sortedSites[cellId].pop();
+  }
+  else
+  {
+    int step = totalSite/NUM_UAV;
+    int remainder = totalSite - step*NUM_UAV;
+    SiteList sl[totalSite];
+    for(int i = 0; i < totalSite; i++)
+    {
+      std::cout<<"segment "<<i<<": ";
+      for(int j = 0; j < step; j++)
+      {
+        if(sortedSites[cellId].size() == 0)
+        {
+          break;
+        }
+        int siteId = sortedSites[cellId].front()->GetId();
+        Ptr<SITE> s = cell_site_list[cellId].Get(siteId);
+        if(sl[i].GetResource() + s->GetResource() < MAX_RESOURCE_PER_UAV)
+        {
+          std::cout<<siteId<<" ";
+          sl[i].Add(s);
+          sortedSites[cellId].pop();
+          if(j == step - 1)
+          {
+            if(remainder > 0)
+            {
+              int siteId1 = sortedSites[cellId].front()->GetId();
+              Ptr<SITE> s1 = cell_site_list[cellId].Get(siteId1);
+              if(sl[i].GetResource() + s1->GetResource() < MAX_RESOURCE_PER_UAV)
+              {
+                std::cout<<siteId1<<" ";
+                sl[i].Add(s);
+                sortedSites[cellId].pop();
+                remainder--;
+              }
+            }
+          }
+        }
+        else
+        {
+          break;
+        }
+      }
+      std::cout<<std::endl;
+    }
+    numSegment[cellId] = 0;
+    for(int i = 0; i < totalSite; i++)
+    {
+      if(sl[i].GetSize() == 0)
+      {
+        break;
+      }
+      numSegment[cellId]++;
+      for(int j = 0; j < (int)sl[i].GetSize(); j++)
+      {
+        Ptr<SITE> s = sl[i].Get(j);
+        segment[cellId][i].Add(s);
+      }
+    }  
+  }
+  for(int i = 0; i < numSegment[cellId]; i++)
+  {
+    mark[cellId][i] = 0;
+  }
+  std::cout<<"cell "<<cellId<<" has "<<numSegment[cellId]<<" segment"<<std::endl;  
+}
+void FindSegment(int cellId, int uavId)
+{
+  std::cout<<"find segment cell "<<cellId<<" uav "<<uavId<<std::endl;
+  if(numSegment[cellId] == 0)
+  {
+    return;
+  }
+  else
+  {
+    int id = 999;
+    for(int i = 0; i < numSegment[cellId]; i++)
+    {
+     // std::cout<<"mark["<<cellId<<"]["<<i<<"] = "<<mark[cellId][i]<<std::endl;
+      if(mark[cellId][i] == 0)
+      {
+        mark[cellId][i] = 1;
+        id = i;
+        break;
+      }
+    }
+    if(id != 999)
+    {
+      for(int i = 0; i < (int)segment[cellId][id].GetSize(); i++)
+      {
+        Ptr<SITE> s = segment[cellId][id].Get(i);
+        sitesOfUav[cellId][uavId].Add(s);
+      }
+      uavState[cellId][uavId] = 1;
+    }
   }
   if(sitesOfUav[cellId][uavId].GetSize() > 0)
   {
@@ -440,9 +556,8 @@ void SiteAssignment(int cellId, int uavId)
   {
     u->AddSite(sitesOfUav[cellId][uavId].Get(path[i]));
   }
-  DoTask(cellId, uavId);  
+  DoTask(cellId, uavId);
 }
-
 void DoTask(int cellId, int uavId)
 {
   //std::cout<<GetNow()<<": goi ham dotask cell "<<cellId<<" uav "<<uavId<<std::endl;
@@ -475,10 +590,10 @@ void DoTask(int cellId, int uavId)
 }
 void NextRound(int cellId, int uavId)
 {
-  std::cout<<GetNow()<<": next round cell "<<cellId<<", uav "<<uavId<<std::endl;
   uavState[cellId][uavId] = 0;
   if(IsFinish(cellId))
   {
+    std::cout<<GetNow()<<"cell "<<cellId<<" xong"<<std::endl;
     finish[cellId] = 1;
     if(IsFinish())
     {
@@ -487,7 +602,8 @@ void NextRound(int cellId, int uavId)
   }
   else
   {
-    Simulator::Schedule(Seconds(60*INTERVAL_BETWEEN_TWO_ROUNDS), &SiteAssignment, cellId, uavId);
+    std::cout<<GetNow()<<": next round cell "<<cellId<<", uav "<<uavId<<std::endl;
+    Simulator::Schedule(Seconds(60*INTERVAL_BETWEEN_TWO_ROUNDS), &FindSegment, cellId, uavId);
   }
 }
 int IsFinish()
@@ -514,10 +630,12 @@ int IsFinish()
 int IsFinish(int cellId)
 {
   //std::cout<<"goi ham IsFinish"<<std::endl;
-  if(sortedSites[cellId].size() > 0)
+  for(int i = 0; i < numSegment[cellId]; i++)
   {
-   // std::cout<<"current <"<<std::endl;
-    return 0;
+    if(mark[cellId][i] == 0)
+    {
+      return 0;
+    }
   }
   for(int i = 0; i < NUM_UAV; i++)
   {
