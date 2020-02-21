@@ -50,7 +50,7 @@ int numberOfSites[NUM_CELL-1];
 int uavState[NUM_CELL][NUM_UAV];
 SiteList cell_site_list[NUM_CELL], temp[NUM_CELL];
 int finish[NUM_CELL];
-
+int numSite[NUM_CELL];
 //
 Vector GetPosition(Ptr<Node> node);
 void SetPosition(Ptr<Node> node, Vector pos);
@@ -269,6 +269,7 @@ double CalculateCost(double distance)
 void Execute(int cellId)
 { 
   std::cout<<"execute cell "<<cellId<<std::endl;
+  numSite[cellId] = 0;
   for(int i = 0; i < NUM_UAV; i++)
   {
     uavState[cellId][i] = 0;
@@ -376,6 +377,7 @@ void DoTask(Ptr<UAV> u)
     Simulator::Schedule(Seconds(flightTime), &UAV::UpdateEnergy, u, STOP); 
     return;
   }
+  numSite[cellId]++;
   uavState[cellId][uavId] = 1;
   Ptr<SITE> s = u->GetSite();
   u -> SetResource(u -> GetResource() - s -> GetResource());
@@ -461,6 +463,7 @@ void StopSimulation()
   double flightTime = 0;
   for(int i = 0; i < NUM_CELL; i++)
   {
+    std::cout<<i<<": "<<numSite[i]<<std::endl;
     energy += uav[i].CalculateEnergyConsumption();
     fliedDistance += uav[i].CalculateFliedDistance();
     utility += cell_site_list[i].GetUtility();
@@ -468,8 +471,8 @@ void StopSimulation()
   }
   double cost = CalculateCost(fliedDistance);
   std::cout<<"Iterative R0 = "<<MAX_RESOURCE_PER_UAV<<", total site = "<<TOTAL_SITE<<std::endl;
-  std::cout<<"Spanning time: "<<GetNow()<<" s"<<std::endl;
-  std::cout<<"Flight time: "<<flightTime<<" s"<<std::endl;
+  std::cout<<"Spanning time: "<<GetNow()/60.0<<" m"<<std::endl;
+  std::cout<<"Flight time: "<<flightTime/3600.0<<" h"<<std::endl;
   std::cout<<"Energy: "<<energy/1000000.0<<" MJ"<<std::endl;
   std::cout<<"Flied distance: "<<fliedDistance/1000.0<<" km"<<std::endl;
   std::cout<<"Benefit: "<<utility - cost<<std::endl;

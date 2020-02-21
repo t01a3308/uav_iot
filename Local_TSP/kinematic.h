@@ -32,6 +32,7 @@
 #include <iostream>
 #include <math.h>
 #include <queue>
+#include <list>
 #include "macro_param.h"
 //#include "handle.h"
 #include "communication.h"
@@ -63,6 +64,8 @@ SiteList sitesOfUav[NUM_CELL][NUM_UAV];// sites uav will visit
 SiteList segment[NUM_CELL][MAX_SITE_PER_CELL];
 int numSegment[NUM_CELL];
 int mark[NUM_CELL][MAX_SITE_PER_CELL];
+double segmentFlightTime[NUM_CELL][MAX_SITE_PER_CELL];
+int numSite[NUM_CELL];
 //
 Vector GetPosition(Ptr<Node> node);
 void SetPosition(Ptr<Node> node, Vector pos);
@@ -373,6 +376,7 @@ myPair TSP(int mask,int current, int n) //
 void Execute(int cellId)
 { 
   std::cout<<"execute cell "<<cellId<<std::endl;
+  numSite[cellId] = 0;
   SortSite(cellId);
   for(int i = 0; i < NUM_UAV; i++)
   {
@@ -414,86 +418,157 @@ void SortSite(int cellId)
   }
 }
 
+void CalculateSegmentFlightTime(int cellId)
+{
+  for(int i = 0; i < numSegment[cellId]; i++)
+  {
+    segmentFlightTime[cellId][i] = 0;
+    int n = segment[cellId][i].GetSize();
+    //
+    Ptr<SITE> first = segment[cellId][i].Get(0);
+    Vector pos = first->GetSitePosition();
+    double dt = CalculateDistance(pos, GetPosition(gw[cellId].Get(0)));
+    double t = dt/VUAV;
+    segmentFlightTime[cellId][i] += t;
+    //
+    Ptr<SITE> last = segment[cellId][i].Get(n-1);
+    Vector pos1 = last->GetSitePosition();
+    double dt1 = CalculateDistance(pos1, GetPosition(gw[cellId].Get(0)));
+    double t1= dt1/VUAV;
+    segmentFlightTime[cellId][i] += t1;
+    for(int j = 0; j < n; j++)
+    {
+      Ptr<SITE> s1 = segment[cellId][i].Get(j);
+      double time = s1->GetVisitedTime();
+      segmentFlightTime[cellId][i] += time;
+      if(j != n-1)
+      {
+        Ptr<SITE> s2 = segment[cellId][i].Get(j+1);
+        Vector p1 = s1->GetSitePosition();
+        Vector p2 = s2->GetSitePosition();
+        double d = CalculateDistance(p1, p2);
+        double time1 = d/VUAV;
+        segmentFlightTime[cellId][i] += time1;
+      }
+    }
+    segmentFlightTime[cellId][i] /= 60.0;
+  }
+}
+void PrintSegmentInformation(int cellId)
+{
+  std::cout<<"cell "<<cellId<<std::endl;
+  for(int i = 0; i < numSegment[cellId]; i++)
+  {
+    std::cout<<"segment "<<i<<": ";
+    for(int j = 0; j < (int)segment[cellId][i].GetSize(); j++)
+    {
+      Ptr<SITE> s = segment[cellId][i].Get(j);
+      int id = s->GetId();
+      std::cout<<id<<" ";
+    }
+    std::cout<<"\t flightTime: "<<segmentFlightTime[cellId][i]<<std::endl;
+  }
+}
 void DivideSitesIntoSegment(int cellId)
 {
-  int totalSite = sortedSites[cellId].size();
+  std::cout<<"divide site into segment cell "<<cellId<<std::endl;
+  
+  int totalSite = cell_site_list[cellId].GetSize();
   if(totalSite == 0)
   {
+    std::cout<<"cell "<<cellId<<" has 0 segment"<<std::endl;
     numSegment[cellId] = 0;
     return;
   }
-  if(cell_site_list[cellId].GetResource() > MAX_RESOURCE_PER_UAV*NUM_UAV)
-  {
-    numSegment[cellId] = 1;
-    int id = 0;
-    std::cout<<"segment 0: ";
-    double resource = 0;
-    for(int i = 0; i < totalSite; i++)
-    {
-      Ptr<SITE> s = sortedSites[cellId].front();
-      double siteResource = s -> GetResource();
-      resource += siteResource;
-      if(resource > MAX_RESOURCE_PER_UAV)
-      {
-        resource = siteResource;
-        numSegment[cellId]++;
-        id++;
-        std::cout<<std::endl;
-        std::cout<<"segment "<<id<<": ";
-        std::cout<<s->GetId()<<" ";
-        segment[cellId][id].Add(s);
-        sortedSites[cellId].pop();
-        continue;
-      }
-      segment[cellId][id].Add(s);
-      sortedSites[cellId].pop();
-      std::cout<<s->GetId()<<" ";
-    }
-  }
-  else
-  {
-    int step = totalSite/NUM_UAV;
-    int remainder = totalSite - step*NUM_UAV;
+    std::list<int> list;
+    int step;
+    int remainder;
     SiteList sl[totalSite];
     for(int i = 0; i < totalSite; i++)
     {
-      std::cout<<"segment "<<i<<": ";
-      for(int j = 0; j < step; j++)
+      list.push_back(sortedSites[cellId].front()->GetId());
+      sortedSites[cellId].pop();
+    }
+    //////////////////
+    int idSegment = 0;
+    while(list.size() > 0)
+    {
+      int n = (int)list.size();
+      step = n/NUM_UAV;
+      remainder = n - step*NUM_UAV;
+      if(step > 0)
       {
-        if(sortedSites[cellId].size() == 0)
+        //std::cout<<"first"<<std::endl;
+        for(int i = 0; i < NUM_UAV; i++)
         {
-          break;
-        }
-        int siteId = sortedSites[cellId].front()->GetId();
-        Ptr<SITE> s = cell_site_list[cellId].Get(siteId);
-        if(sl[i].GetResource() + s->GetResource() < MAX_RESOURCE_PER_UAV)
-        {
-          std::cout<<siteId<<" ";
-          sl[i].Add(s);
-          sortedSites[cellId].pop();
-          if(j == step - 1)
+          
+          for(int j = 0; j < step; j++)
           {
-            if(remainder > 0)
+            if(list.size() == 0)
             {
-              int siteId1 = sortedSites[cellId].front()->GetId();
-              Ptr<SITE> s1 = cell_site_list[cellId].Get(siteId1);
-              if(sl[i].GetResource() + s1->GetResource() < MAX_RESOURCE_PER_UAV)
+              break;
+            }
+            int siteId = GetValue<int>(list, 0);
+            Ptr<SITE> s = cell_site_list[cellId].Get(siteId);
+            if(sl[idSegment].GetResource() + s->GetResource() < MAX_RESOURCE_PER_UAV)
+            {
+              sl[idSegment].Add(s);
+              list.pop_front();
+              if(j == step - 1)
               {
-                std::cout<<siteId1<<" ";
-                sl[i].Add(s);
-                sortedSites[cellId].pop();
-                remainder--;
+                if(remainder > 0)
+                {
+                  if(list.size() == 0)
+                  {
+                    break;
+                  }
+                  int siteId1 = GetValue<int>(list, 0);
+                  Ptr<SITE> s1 = cell_site_list[cellId].Get(siteId1);
+                  if(sl[idSegment].GetResource() + s1->GetResource() < MAX_RESOURCE_PER_UAV)
+                  {
+                    sl[idSegment].Add(s);
+                    list.pop_front();
+                    remainder--;
+                  }
+                }
               }
             }
           }
-        }
-        else
-        {
-          break;
+          idSegment++;
         }
       }
-      std::cout<<std::endl;
+      else
+      {
+       // std::cout<<"second"<<std::endl;
+        for(int i = 0; i < remainder; i++)
+        {
+          if(list.size() == 0)
+          {
+            break;
+          }
+          for(int j = 0; j < remainder; j++)
+          {
+            if(list.size() == 0)
+            {
+              break;
+            }
+            int siteId = GetValue<int>(list, 0);
+            Ptr<SITE> s = cell_site_list[cellId].Get(siteId);
+            double r1 = sl[idSegment].GetResource();
+            double r2 = s->GetResource();
+            if(r1 + r2 < MAX_RESOURCE_PER_UAV)
+            {
+              sl[idSegment].Add(s);
+              list.pop_front();
+            }
+          }
+          idSegment++;
+        }
+      }
+      
     }
+    //////////////////////
+
     numSegment[cellId] = 0;
     for(int i = 0; i < totalSite; i++)
     {
@@ -507,13 +582,16 @@ void DivideSitesIntoSegment(int cellId)
         Ptr<SITE> s = sl[i].Get(j);
         segment[cellId][i].Add(s);
       }
-    }  
-  }
+      sl[i].Clear();
+    }
+  
   for(int i = 0; i < numSegment[cellId]; i++)
   {
     mark[cellId][i] = 0;
   }
-  std::cout<<"cell "<<cellId<<" has "<<numSegment[cellId]<<" segment"<<std::endl;  
+  std::cout<<"cell "<<cellId<<" has "<<numSegment[cellId]<<" segment"<<std::endl;
+  CalculateSegmentFlightTime(cellId);
+  PrintSegmentInformation(cellId);
 }
 void FindSegment(int cellId, int uavId)
 {
@@ -575,6 +653,7 @@ void DoTask(int cellId, int uavId)
     Simulator::Schedule(Seconds(flightTime), &UAV::UpdateEnergy, u, STOP); 
     return;
   }
+  numSite[cellId]++;
   Ptr<SITE> s = u->GetSite();
   u->RemoveSite();
   std::cout<<GetNow()<<": cell "<<cellId<<", uav "<<uavId<<" go to site "<<s->GetId()<<std::endl;
@@ -656,6 +735,7 @@ void StopSimulation()
   double flightTime = 0;
   for(int i = 0; i < NUM_CELL; i++)
   {
+    std::cout<<i<<": "<<numSite[i]<<std::endl;
     energy += uav[i].CalculateEnergyConsumption();
     fliedDistance += uav[i].CalculateFliedDistance();
     utility += cell_site_list[i].GetUtility();
@@ -663,8 +743,8 @@ void StopSimulation()
   }
   double cost = CalculateCost(fliedDistance);
   std::cout<<"Local TSP R0 = "<<MAX_RESOURCE_PER_UAV<<", total site = "<<TOTAL_SITE<<std::endl;
-  std::cout<<"Spanning time: "<<GetNow()<<" s"<<std::endl;
-  std::cout<<"Flight time: "<<flightTime<<" s"<<std::endl;
+  std::cout<<"Spanning time: "<<GetNow()/60.0<<" m"<<std::endl;
+  std::cout<<"Flight time: "<<flightTime/3600.0<<" h"<<std::endl;
   std::cout<<"Energy: "<<energy/1000000.0<<" MJ"<<std::endl;
   std::cout<<"Flied distance: "<<fliedDistance/1000.0<<" km"<<std::endl;
   std::cout<<"Benefit: "<<utility - cost<<std::endl;

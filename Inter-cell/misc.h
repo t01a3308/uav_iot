@@ -72,3 +72,10 @@ void RemoveValueInVector(vector<T> &v, T value)
 		it++;
 	}
 }
+template<class D>
+D GetValue(std::list<D>& l,int n)
+{
+  typename std::list<D>::iterator i = l.begin();
+  std::advance(i, n);
+  return *i; 
+}

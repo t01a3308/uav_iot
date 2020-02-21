@@ -82,7 +82,6 @@ int main()
   for(int i = 0; i < NUM_CELL-1; i++)
   {
     GELSGA(i);
-   // TSP(i);
     Execute(i);
   }
   anim = new AnimationInterface("gelsga.xml");

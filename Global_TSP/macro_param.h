@@ -20,7 +20,7 @@
  *          Nguyen Pham Van <nguyen.pv152737@sis.hust.edu.vn>
  */
 /*Global parameters*/
-#define NUM_UAV 3 //per cell
+#define NUM_UAV 2 //per cell
 #define NUM_SENSOR 30 // per cell
 #define NUM_GW 1 //per cell
 #define NUM_CELL 7
@@ -29,10 +29,10 @@
 #define Y0 3000.0 //  m
 #define CELL_RADIUS 1000.0 // m // cell radius
 //
-#define TOTAL_SITE 80
+#define TOTAL_SITE 70
 #define MAX_SITE_PER_CELL 20
 #define VUAV 5.0 // m/s
-#define MAX_RESOURCE_PER_UAV 5500.0
+#define MAX_RESOURCE_PER_UAV 100.0
 //sensor data
 #define MIN_VALUE 50.0
 #define MAX_VALUE 100.0
@@ -47,8 +47,8 @@
 #define MAX_URGENCY 200
 //power 
 #define STOP 0.0
-#define FLYING 200.0
-#define HANDLING 300.0
+#define FLYING 350.0
+#define HANDLING 400.0
 //
 #define PI 3.14159
 //TSP
@@ -68,7 +68,7 @@
 //
 #define INTERVAL_BETWEEN_TWO_PACKETS 0.001// SECOND
 //
-#define INTERVAL_BETWEEN_TWO_ROUNDS 3 //minute
+#define INTERVAL_BETWEEN_TWO_ROUNDS 1 //minute
 // energy when uav send or receive 
 #define ENERGY_SEND 0.1 // J
 #define ENERGY_RECEIVE 0.01 // J
