@@ -35,7 +35,7 @@
 //#include "handle.h"
 #include "communication.h"
 using namespace ns3;
-
+extern AnimationInterface *anim;
 extern double dataLoad;
 extern double X[MAX_NUM_CELL], Y[MAX_NUM_CELL];//cell center 's position
 extern UAVContainer uav[NUM_CELL];
@@ -51,6 +51,7 @@ int uavState[NUM_CELL][NUM_UAV];
 SiteList cell_site_list[NUM_CELL], temp[NUM_CELL];
 int finish[NUM_CELL];
 int numSite[NUM_CELL];
+std::vector<int> completedSites[NUM_CELL];
 //
 Vector GetPosition(Ptr<Node> node);
 void SetPosition(Ptr<Node> node, Vector pos);
@@ -256,9 +257,11 @@ void CreateSite()
     for(int j = 0; j < numberOfSites[i]; j++)
     {
       double data = rd -> GetValue(MIN_VALUE, MAX_VALUE);
-      Ptr<SITE> s = CreateObject<SITE>(GetPosition(sensor[i].Get(j)), data);
+      Ptr<SITE> s = CreateObject<SITE>(GetPosition(sensor[i].Get(j)), data, j);
       cell_site_list[i].Add(s);
       temp[i].Add(s);
+      anim->UpdateNodeSize(sensor[i].Get(j)->GetId(), 100, 100);
+      anim->UpdateNodeColor(sensor[i].Get(j)->GetId(), 0, 255, 0);
     }
   }
 }
@@ -272,6 +275,8 @@ void Execute(int cellId)
   numSite[cellId] = 0;
   for(int i = 0; i < NUM_UAV; i++)
   {
+    anim->UpdateNodeSize(uav[cellId].Get(i)->GetId(), 200, 200);
+    anim->UpdateNodeColor(uav[cellId].Get(i)->GetId(), 0, 0, 255);
     uavState[cellId][i] = 0;
   }
   for(int i = 0 ; i < NUM_UAV; i++)
@@ -357,7 +362,10 @@ void FindSite(Ptr<UAV> u)
     
   }
 }
-
+void ChangeColor(int cellId, int sensorId)
+{
+  anim->UpdateNodeColor(sensor[cellId].Get(sensorId)->GetId(), 255, 0, 0);
+}
 void DoTask(Ptr<UAV> u)
 {
   int cellId = u -> GetCellId();
@@ -380,6 +388,7 @@ void DoTask(Ptr<UAV> u)
   numSite[cellId]++;
   uavState[cellId][uavId] = 1;
   Ptr<SITE> s = u->GetSite();
+  completedSites[cellId].push_back(s->GetId());
   u -> SetResource(u -> GetResource() - s -> GetResource());
   std::cout<<GetNow()<<": cell "<<cellId<<", uav "<<uavId<<" go to site "<<s->GetId()<<std::endl;
   double flightTime = Goto(u, s -> GetSitePosition());
@@ -390,6 +399,7 @@ void DoTask(Ptr<UAV> u)
   Simulator::Schedule(Seconds(flightTime), &UAV::UpdateEnergy, u, HANDLING);
   double visitedTime = s -> GetVisitedTime();
   u->UpdateFlightTime(flightTime + visitedTime);
+  Simulator::Schedule(Seconds(flightTime+visitedTime), &ChangeColor, cellId, s->GetId());
   Simulator::Schedule(Seconds(flightTime), &FindSite, u);
   Simulator::Schedule(Seconds(flightTime + visitedTime), &DoTask, u);
   Simulator::Schedule(Seconds(flightTime + visitedTime), &SendPacket, u, gw[cellId].Get(0), NUM_PACKET_SITE, UAV_PACKET_SIZE, INTERVAL_BETWEEN_TWO_PACKETS);
@@ -468,6 +478,15 @@ void StopSimulation()
     fliedDistance += uav[i].CalculateFliedDistance();
     utility += cell_site_list[i].GetUtility();
     flightTime += uav[i].CalculateFlightTime();
+  }
+  for(int i = 0; i < NUM_CELL; i++)
+  {
+    std::cout<<"cell "<<i<<": ";
+    for(int j = 0; j < (int)completedSites[i].size(); j++)
+    {
+      std::cout<<completedSites[i][j]<<" ";
+    }
+    std::cout<<std::endl;
   }
   double cost = CalculateCost(fliedDistance);
   std::cout<<"Iterative R0 = "<<MAX_RESOURCE_PER_UAV<<", total site = "<<TOTAL_SITE<<std::endl;

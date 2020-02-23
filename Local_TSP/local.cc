@@ -79,12 +79,13 @@ int main()
     UavSend(i);
     SensorSend(i);    
   }
+  anim = new AnimationInterface("local_tsp.xml");
   CreateSite();
   for(int i = 0; i < NUM_CELL; i++)
   {
     Execute(i);
   }
-  anim = new AnimationInterface("local_tsp.xml");
+  
   Simulator::Run();
   Simulator::Destroy();
   

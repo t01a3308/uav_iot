@@ -54,8 +54,7 @@ private:
                                               // 1 - in auction
 	vector < pair<Ptr<UAV>, double > > bidder;
 public:
-	static int cnt;
-	SITE(Vector p, double data_value);
+	SITE(Vector p, double data_value, int idx);
 	~SITE()
 	{
 
@@ -73,8 +72,7 @@ public:
 	int GetStatus();
 	void SetStatus(int sta);
 };
-int SITE::cnt = 0;
-SITE::SITE(Vector p, double data_value)
+SITE::SITE(Vector p, double data_value, int idx)
 {
 	Ptr<UniformRandomVariable> rd = CreateObject<UniformRandomVariable>();
 	position = p;
@@ -83,7 +81,7 @@ SITE::SITE(Vector p, double data_value)
 	urgency = rd -> GetValue(MIN_URGENCY, MAX_URGENCY);
 	w = rd -> GetValue(1.0, 2.0);
 	utility = K_FACTOR * w * resource * urgency;
-	id = cnt++;
+	id = idx;
 }
 Vector SITE::GetSitePosition()
 {

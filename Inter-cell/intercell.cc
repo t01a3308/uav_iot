@@ -80,13 +80,14 @@ int main()
     SensorSend(i);
     
   }
+  anim = new AnimationInterface("inter-cell.xml");
   CreateSite();
   for(int i = 0; i < NUM_CELL; i++)
   {
     GlobalTSP(i);
     Execute(i);
   }
-  anim = new AnimationInterface("inter-cell.xml");
+  
   Simulator::Run();
   Simulator::Destroy();
   

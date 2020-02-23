@@ -83,12 +83,13 @@ int main()
     UavSend(i);
     SensorSend(i);
   }
+  anim = new AnimationInterface("iterative.xml");
   CreateSite();
   for(int i = 0; i < NUM_CELL; i++)
   {
     Execute(i);
   }
-  anim = new AnimationInterface("iterative.xml");
+  
   Simulator::Run();
   Simulator::Destroy();
   

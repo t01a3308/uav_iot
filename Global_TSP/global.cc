@@ -79,6 +79,7 @@ int main()
     UavSend(i);
     SensorSend(i);    
   }
+  anim = new AnimationInterface("global_tsp.xml");
   CreateSite();
   for(int i = 0; i < NUM_CELL; i++)
   {
@@ -86,7 +87,7 @@ int main()
    // TSP(i);
     Execute(i);
   }
-  anim = new AnimationInterface("global_tsp.xml");
+  
   Simulator::Run();
   Simulator::Destroy();
   
