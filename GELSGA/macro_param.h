@@ -28,6 +28,7 @@
 #define X0 3000.0 //  m // position of cell centre 0
 #define Y0 3000.0 //  m
 #define CELL_RADIUS 1000.0 // m // cell radius
+#define height 20.0
 //
 #define TOTAL_SITE 70
 #define MAX_SITE_PER_CELL 20

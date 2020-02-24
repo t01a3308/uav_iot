@@ -209,7 +209,7 @@ void SetupUavPosition(int cellId)
   m.Install(uav[cellId]);
   for(int i = 0; i < NUM_UAV; i++)
   {
-    SetPosition(uav[cellId].Get(i), Vector(X[cellId], Y[cellId], 100));
+    SetPosition(uav[cellId].Get(i), Vector(X[cellId], Y[cellId], height));
   }
     //std::cout<<GetPosition(uav.Get(2));
 }
@@ -221,7 +221,7 @@ void SetupGwPosition(int cellId)
   m.Install (gw[cellId]);
   for(int i = 0; i < NUM_GW ; i++)
   {
-    SetPosition(gw[cellId].Get(i), Vector(X[cellId], Y[cellId], 0));
+    SetPosition(gw[cellId].Get(i), Vector(X[cellId], Y[cellId], height));
   }
 }
 void CreateSite()
@@ -465,7 +465,7 @@ void Execute(int cellId)
   }
   else if(cellId == 6)
   {
-
+    uavState[cellId][0] = 1;
   }
   else
   {
@@ -542,6 +542,9 @@ void InterCell(int cellId)
       u -> AddSite(segment[cellId][id].Get(i));
     }
     mark[cellId][id] = 1;
+    int id1 = u->GetCellId();
+    int id2 = u->GetUavId();
+    uavState[id1][id2] = 1;
     DoTask(u);
   }
   
@@ -779,6 +782,10 @@ void DoTask(Ptr<UAV> u)
     u -> UpdateFliedDistance(VUAV*flightTime);
     Simulator::Schedule(Seconds(flightTime), &NextRound, u);   
     Simulator::Schedule(Seconds(flightTime), &UAV::UpdateEnergy, u, STOP); 
+    if(cellId == 6)
+    {
+      std::cout<<"current pos "<<GetPosition(u)<<", dest "<<GetPosition(gw[cellId].Get(0))<<" time = "<<flightTime<<std::endl;
+    }
     return;
   }
   numSite[cellId]++;
@@ -819,7 +826,7 @@ void NextRound(Ptr<UAV> u)
 }
 int IsFinish()
 {
-  for(int i =0 ; i < NUM_CELL; i++)
+  for(int i = 0 ; i < NUM_CELL; i++)
   {
   	if(i == NUM_CELL - 1)
   	{

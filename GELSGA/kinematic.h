@@ -225,7 +225,7 @@ void SetupUavPosition(int cellId)
   m.Install(uav[cellId]);
   for(int i = 0; i < NUM_UAV; i++)
   {
-    SetPosition(uav[cellId].Get(i), Vector(X[cellId], Y[cellId], 100));
+    SetPosition(uav[cellId].Get(i), Vector(X[cellId], Y[cellId], height));
   }
     //std::cout<<GetPosition(uav.Get(2));
 }
@@ -237,7 +237,7 @@ void SetupGwPosition(int cellId)
   m.Install (gw[cellId]);
   for(int i = 0; i < NUM_GW ; i++)
   {
-    SetPosition(gw[cellId].Get(i), Vector(X[cellId], Y[cellId], 0));
+    SetPosition(gw[cellId].Get(i), Vector(X[cellId], Y[cellId], height));
   }
 }
 void CreateSite()

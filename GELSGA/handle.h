@@ -68,7 +68,7 @@ public:
 SITE::SITE(Vector p, double data_value, int idx)
 {
 	Ptr<UniformRandomVariable> rd = CreateObject<UniformRandomVariable>();
-	position = p;
+	position = Vector(p.x, p.y, height);
 	visited_time = VISITED_TIME_FACTOR * data_value;
 	resource = RESOURCE_FACTOR * data_value;
 	urgency = rd -> GetValue(MIN_URGENCY, MAX_URGENCY);

@@ -28,11 +28,12 @@
 #define X0 3000.0 //  m // position of cell centre 0
 #define Y0 3000.0 //  m
 #define CELL_RADIUS 1000.0 // m // cell radius
+#define height 20.0 //altitude of uav
 //
 #define TOTAL_SITE 70
 #define MAX_SITE_PER_CELL 20
 #define VUAV 5.0 // m/s
-#define MAX_RESOURCE_PER_UAV 100.0
+#define MAX_RESOURCE_PER_UAV 500.0
 //sensor data
 #define MIN_VALUE 50.0
 #define MAX_VALUE 100.0
