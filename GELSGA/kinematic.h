@@ -29,6 +29,7 @@
 #include "ns3/wifi-80211p-helper.h"
 #include "ns3/wave-mac-helper.h"
 #include "ns3/yans-wifi-helper.h"
+#include "ns3/gnuplot.h"
 #include <iostream>
 #include <math.h>
 #include <list>
@@ -71,6 +72,13 @@ double segmentFlightTime[NUM_CELL][MAX_SITE_PER_CELL];
 int numSite[NUM_CELL];
 std::vector<int> segmentsOfUav[NUM_CELL][NUM_UAV];
 std::vector<int> completedSites[NUM_CELL];
+typedef std::pair<double, double> myPair;
+typedef std::pair<int, std::string> myPair1;
+typedef std::pair<myPair1, myPair> mp;
+std::vector<mp> workInfor[NUM_CELL];
+double length0 = 0;
+//
+Gnuplot2dDataset p[NUM_UAV];
 //
 Vector GetPosition(Ptr<Node> node);
 void SetPosition(Ptr<Node> node, Vector pos);
@@ -129,6 +137,58 @@ Vector GetVelocity(Ptr<Node> node)
 void SetVelocity(Ptr<Node> node, Vector v)
 {
   node -> GetObject<ConstantVelocityMobilityModel>()->SetVelocity(v);
+}
+void AddPath(int uavId)
+{
+  Vector pos = GetPosition(uav[0].Get(uavId));
+  p[uavId].Add(pos.x, pos.y);
+}
+void CreatePathPlot ()
+{
+  std::string fileNameWithNoExtension = "gelsga_"+std::to_string(TOTAL_SITE)+"_"+std::to_string((int)MAX_RESOURCE_PER_UAV);
+  std::string graphicsFileName        = fileNameWithNoExtension + ".png";
+  std::string plotFileName            = fileNameWithNoExtension + ".plt";
+  //std::string plotTitle               = "2-D Plot";
+  std::string dataTitle               = "uav";
+  // Instantiate the plot and set its title.
+  Gnuplot plot (graphicsFileName);
+ // plot.SetTitle (plotTitle);
+
+  // Make the graphics file, which the plot file will create when it
+  // is used with Gnuplot, be a PNG file.
+  plot.SetTerminal ("png");
+
+  // Rotate the plot 30 degrees around the x axis and then rotate the
+  // plot 120 degrees around the new z axis.
+  plot.AppendExtra ("set view 30, 120, 1.0, 1.0");
+
+  // Make the zero for the z-axis be in the x-axis and y-axis plane.
+  plot.AppendExtra ("set ticslevel 0");
+
+  // Set the labels for each axis.
+  plot.AppendExtra ("set xlabel \"Coordination X\"");
+  plot.AppendExtra ("set ylabel \"Coordination Y\"");
+  
+
+  // Set the ranges for the x and y axis.
+
+
+  // Instantiate the dataset, set its title, and make the points be
+  // connected by lines.
+  for(int i = 0; i < NUM_UAV; i++)
+  {
+    p[i].SetStyle (Gnuplot2dDataset::LINES);
+    p[i].SetTitle (dataTitle+std::to_string(i));
+    plot.AddDataset (p[i]);
+  }
+  // Open the plot file.
+  std::ofstream plotFile (plotFileName.c_str());
+
+  // Write the plot file.
+  plot.GenerateOutput (plotFile);
+
+  // Close the plot file.
+  plotFile.close ();
 }
 double Goto(Ptr<Node> node, Vector dest)
 {
@@ -330,6 +390,7 @@ std::vector<int> CreateChromosome(int cellId)
 }
 void CreatePopulation(int cellId)
 {
+ // std::cout<<"CreatePopulation"<<std::endl;
   for(int i = 0; i < NUM_CHROMOSOME; i++)
   {
     chromosome[i].clear();
@@ -399,14 +460,8 @@ double CalculateFitness(std::vector<int> &chro, int cellId)
       continue;
     }
     load[i] = 0;
-    if(i == 0)
-    {
-      fit += CalculateDistance(Vector(X[cellId], Y[cellId], 0), cell_site_list[cellId].Get(chro[begin])->GetSitePosition());
-    }
-    if(i == NUM_UAV-1)
-    {
-      fit += CalculateDistance(Vector(X[cellId], Y[cellId], 0), cell_site_list[cellId].Get(chro[end])->GetSitePosition());
-    }
+    fit += CalculateDistance(Vector(X[cellId], Y[cellId], 0), cell_site_list[cellId].Get(chro[begin])->GetSitePosition());
+    fit += CalculateDistance(Vector(X[cellId], Y[cellId], 0), cell_site_list[cellId].Get(chro[end])->GetSitePosition());
     for(int j = begin; j <= end; j++)
     {
       Ptr<SITE> s = cell_site_list[cellId].Get(chro[j]);
@@ -415,19 +470,9 @@ double CalculateFitness(std::vector<int> &chro, int cellId)
       {
         fit += CalculateDistance(cell_site_list[cellId].Get(chro[j+1])->GetSitePosition(), s->GetSitePosition());
       }
-      if(i != 0)
-      {
-        if(j == begin)
-        {
-          if(j > 1)
-          {
-            fit += CalculateDistance(cell_site_list[cellId].Get(chro[j-2])->GetSitePosition(), s->GetSitePosition());
-          }
-        }
-      }
     }
     //std::cout<<"load "<<i<<" = "<<load[i]<<std::endl;
-    //fit += 0.001*(load[i] - MAX_RESOURCE_PER_UAV);    
+    fit += (load[i] - MAX_RESOURCE_PER_UAV);    
   }
   return fit;
 }
@@ -765,11 +810,20 @@ void CrossOver(int cellId)
   {
     CrossOverType2(idMin, second);
   }
+  int id = 0;
+    for(int i = 0; i < (int)children.size(); i++)
+    {
+      if(children[i] == 777)
+      {
+        value777_children[id] = i;
+        id++;
+      }
+    }
   Mutation(cellId);
 }
 void MutationType1()
 {
-  //std::cout<<"MutationType1"<<std::endl;
+ // std::cout<<"MutationType1"<<std::endl;
   while(1)
   {
     int id1 = rand() % (children.size());
@@ -802,9 +856,11 @@ void MutationType1()
 }
 void MutationType2()
 {
-  //std::cout<<"MutationType2"<<std::endl;
+ //std::cout<<"MutationType2"<<std::endl;
   int id = rand() % NUM_UAV;
+ // std::cout<<"id = "<<id<<std::endl;
   int begin, end;
+  //std::cout<<"777 0 = "<<value777_children[0]<<std::endl;
   if(id == 0)
   {
     begin = 0;
@@ -820,9 +876,10 @@ void MutationType2()
     begin = value777_children[id-1] + 1;
     end = value777_children[id] - 1;
   }
+ // std::cout<<"begin = "<<begin<<" end = "<<end<<std::endl;
   if(begin > end)
   {
-    //std::cout<<"begin > end (mutation)"<<std::endl;
+   // std::cout<<"begin > end (mutation)"<<std::endl;
     return;
   }
   int pivot = rand() % (end - begin + 1) + begin;
@@ -862,9 +919,9 @@ void Mutation(int cellId)
 }
 void Terminate(int cellId)
 {
-  //std::cout<<"Terminate"<<std::endl;
+ // std::cout<<"Terminate"<<std::endl;
   double childrenFitness = CalculateFitness(children, cellId);
-  //std::cout<<"children fitness = "<<childrenFitness<<std::endl;
+ // std::cout<<"children fitness = "<<childrenFitness<<std::endl;
   int idMax = 0;
   double maxFitness = fitness[0];
   for(int i = 1; i < NUM_CHROMOSOME; i++)
@@ -875,11 +932,12 @@ void Terminate(int cellId)
       idMax = i;
     }
   }
-  //std::cout<<"IdMaxFitness: "<<idMax<<": "<<maxFitness<<std::endl;
+ // std::cout<<"IdMaxFitness: "<<idMax<<": "<<maxFitness<<std::endl;
   if(childrenFitness < maxFitness)
   {
     chromosome[idMax].clear();
     chromosome[idMax] = children;
+    fitness[idMax] = childrenFitness;
     for(int i = 0; i < NUM_UAV-1; i++)
     {
       value777[idMax][i] = value777_children[i];
@@ -1398,6 +1456,10 @@ void DoTask(Ptr<UAV> u)
 {
   int uavId = u -> GetUavId();
   int cellId = u -> GetCellId();
+  if(cellId == 0)
+  {
+    AddPath(uavId);
+  }
   if(u->GetSiteSize() == 0)
   {
     std::cout<<GetNow()<<": cell "<<cellId<<", uav "<<uavId<<" go back"<<std::endl;
@@ -1405,6 +1467,11 @@ void DoTask(Ptr<UAV> u)
     u -> UpdateFlightTime(flightTime);
     u -> UpdateEnergy(FLYING);
     u -> UpdateFliedDistance(VUAV*flightTime);
+    if(cellId == 0)
+    {
+      length0 += VUAV*flightTime;
+      Simulator::Schedule(Seconds(flightTime), &AddPath, uavId);
+    }
     Simulator::Schedule(Seconds(flightTime), &NextRound, u);   
     Simulator::Schedule(Seconds(flightTime), &UAV::UpdateEnergy, u, STOP); 
     return;
@@ -1419,6 +1486,14 @@ void DoTask(Ptr<UAV> u)
   u->RemoveSite();
   double visitedTime = s -> GetVisitedTime();
   u->UpdateFlightTime(flightTime + visitedTime);
+  myPair1 m1 = std::make_pair(s->GetId(), std::to_string(cellId) + std::to_string(uavId));
+  myPair m2 = std::make_pair(GetNow() + flightTime, GetNow() + flightTime + visitedTime);
+  workInfor[cellId].push_back(std::make_pair(m1, m2));
+  if(cellId == 0)
+  {
+    length0 += VUAV*flightTime;
+    Simulator::Schedule(Seconds(flightTime), &AddPath, uavId);
+  }
   Simulator::Schedule(Seconds(flightTime+visitedTime), &ChangeColor, cellId, s->GetId());
   Simulator::Schedule(Seconds(flightTime), &UAV::UpdateEnergy, u, HANDLING);
   Simulator::Schedule(Seconds(flightTime + visitedTime), &DoTask, u);
@@ -1518,6 +1593,18 @@ void StopSimulation()
     }
     std::cout<<std::endl;
   }
+  for(int i = 0; i < NUM_CELL; i++)
+  {
+    std::cout<<"cell "<<i<<std::endl;
+    for(int j = 0; j < (int)workInfor[i].size(); j++)
+    {
+      mp m = workInfor[i][j];
+      myPair1 id = m.first;
+      myPair time = m.second;
+      std::cout<<"site "<<id.first<<", by "<<id.second<<", start = "<<time.first<<", stop = "<<time.second<<", pos "<<cell_site_list[i].Get(id.first)->GetSitePosition()<<std::endl;
+    }
+  }
+  std::cout<<"length0 = "<<length0<<std::endl;
   double cost = CalculateCost(fliedDistance);
   std::cout<<"GELSGA R0 = "<<MAX_RESOURCE_PER_UAV<<", total site = "<<TOTAL_SITE<<std::endl;
   std::cout<<"Spanning time: "<<GetNow()/60.0<<" m"<<std::endl;
@@ -1526,5 +1613,6 @@ void StopSimulation()
   std::cout<<"Flied distance: "<<fliedDistance/1000.0<<" km"<<std::endl;
   std::cout<<"Benefit: "<<utility - cost<<std::endl;
   std::cout<<"Data: "<<dataLoad/1024.0/1024.0<<" MB"<<std::endl;
+  CreatePathPlot();
   Simulator::Stop();
 }

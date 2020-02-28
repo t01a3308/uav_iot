@@ -29,6 +29,7 @@
 #include "ns3/wifi-80211p-helper.h"
 #include "ns3/wave-mac-helper.h"
 #include "ns3/yans-wifi-helper.h"
+#include "ns3/gnuplot.h"
 #include <iostream>
 #include <math.h>
 #include "macro_param.h"
@@ -52,6 +53,13 @@ SiteList cell_site_list[NUM_CELL], temp[NUM_CELL];
 int finish[NUM_CELL];
 int numSite[NUM_CELL];
 std::vector<int> completedSites[NUM_CELL];
+typedef std::pair<double, double> myPair;
+typedef std::pair<int, std::string> myPair1;
+typedef std::pair<myPair1, myPair> mp;
+std::vector<mp> workInfor[NUM_CELL];
+double length0 = 0;
+//
+Gnuplot2dDataset p[NUM_UAV];
 //
 Vector GetPosition(Ptr<Node> node);
 void SetPosition(Ptr<Node> node, Vector pos);
@@ -95,6 +103,58 @@ Vector GetVelocity(Ptr<Node> node)
 void SetVelocity(Ptr<Node> node, Vector v)
 {
   node -> GetObject<ConstantVelocityMobilityModel>()->SetVelocity(v);
+}
+void AddPath(int uavId)
+{
+  Vector pos = GetPosition(uav[0].Get(uavId));
+  p[uavId].Add(pos.x, pos.y);
+}
+void CreatePathPlot ()
+{
+  std::string fileNameWithNoExtension = "iterative_"+std::to_string(TOTAL_SITE)+"_"+std::to_string((int)MAX_RESOURCE_PER_UAV);
+  std::string graphicsFileName        = fileNameWithNoExtension + ".png";
+  std::string plotFileName            = fileNameWithNoExtension + ".plt";
+  //std::string plotTitle               = "2-D Plot";
+  std::string dataTitle               = "uav";
+  // Instantiate the plot and set its title.
+  Gnuplot plot (graphicsFileName);
+ // plot.SetTitle (plotTitle);
+
+  // Make the graphics file, which the plot file will create when it
+  // is used with Gnuplot, be a PNG file.
+  plot.SetTerminal ("png");
+
+  // Rotate the plot 30 degrees around the x axis and then rotate the
+  // plot 120 degrees around the new z axis.
+  plot.AppendExtra ("set view 30, 120, 1.0, 1.0");
+
+  // Make the zero for the z-axis be in the x-axis and y-axis plane.
+  plot.AppendExtra ("set ticslevel 0");
+
+  // Set the labels for each axis.
+  plot.AppendExtra ("set xlabel \"Coordination X\"");
+  plot.AppendExtra ("set ylabel \"Coordination Y\"");
+  
+
+  // Set the ranges for the x and y axis.
+
+
+  // Instantiate the dataset, set its title, and make the points be
+  // connected by lines.
+  for(int i = 0; i < NUM_UAV; i++)
+  {
+    p[i].SetStyle (Gnuplot2dDataset::LINES);
+    p[i].SetTitle (dataTitle+std::to_string(i));
+    plot.AddDataset (p[i]);
+  }
+  // Open the plot file.
+  std::ofstream plotFile (plotFileName.c_str());
+
+  // Write the plot file.
+  plot.GenerateOutput (plotFile);
+
+  // Close the plot file.
+  plotFile.close ();
 }
 double Goto(Ptr<Node> node, Vector dest)
 {
@@ -272,6 +332,7 @@ double CalculateCost(double distance)
 void Execute(int cellId)
 { 
   std::cout<<"execute cell "<<cellId<<std::endl;
+
   numSite[cellId] = 0;
   for(int i = 0; i < NUM_UAV; i++)
   {
@@ -289,13 +350,13 @@ void FindSite(Ptr<UAV> u)
   int cellId = u -> GetCellId();
   int uavId = u -> GetUavId();
   std::cout<<GetNow()<<": cell "<<cellId<<", uav "<<uavId<<" find site "<<std::endl;
-  Vector pos = GetPosition(u);
   int n = temp[cellId].GetSize();
   if(n == 0)
   {
     std::cout<<GetNow()<<": cell "<<cellId<<", uav "<<uavId<<" khong co site "<<std::endl;
     return;
   }
+  Vector pos = GetPosition(u);
   double distance[n];
   for(int i = 0; i < n; i++)
   {
@@ -370,6 +431,10 @@ void DoTask(Ptr<UAV> u)
 {
   int cellId = u -> GetCellId();
   int uavId = u -> GetUavId();
+  if(cellId == 0)
+  {
+    AddPath(uavId);
+  }
   if(u -> GetSiteSize() == 0)
   {
     FindSite(u);
@@ -377,10 +442,16 @@ void DoTask(Ptr<UAV> u)
   if(u->GetSiteSize() == 0)
   {
     std::cout<<GetNow()<<": cell "<<cellId<<", uav "<<uavId<<" go back"<<std::endl;
-    double flightTime = Goto(u, GetPosition(gw[cellId].Get(0)));    
+    double flightTime = Goto(u, GetPosition(gw[cellId].Get(0)));  
+ 
     u -> UpdateEnergy(FLYING);
     u -> UpdateFliedDistance(VUAV*flightTime);
     u -> UpdateFlightTime(flightTime);
+    if(cellId == 0)
+    {
+      Simulator::Schedule(Seconds(flightTime), &AddPath, uavId);
+      length0 += VUAV*flightTime;
+    }
     Simulator::Schedule(Seconds(flightTime), &NextRound, u);   
     Simulator::Schedule(Seconds(flightTime), &UAV::UpdateEnergy, u, STOP); 
     return;
@@ -389,8 +460,14 @@ void DoTask(Ptr<UAV> u)
   uavState[cellId][uavId] = 1;
   Ptr<SITE> s = u->GetSite();
   completedSites[cellId].push_back(s->GetId());
-  u -> SetResource(u -> GetResource() - s -> GetResource());
-  std::cout<<GetNow()<<": cell "<<cellId<<", uav "<<uavId<<" go to site "<<s->GetId()<<std::endl;
+  double newResource = u -> GetResource() - s -> GetResource();
+  if(newResource < 0)
+  {
+    std::cout<<"stopsim"<<std::endl;
+    Simulator::Stop();
+  }
+  u -> SetResource(newResource);
+  std::cout<<GetNow()<<": cell "<<cellId<<", uav "<<uavId<<" pos = "<<GetPosition(u)<<" go to site "<<s->GetId()<<" pos = "<<s->GetSitePosition()<<std::endl;
   double flightTime = Goto(u, s -> GetSitePosition());
   u -> UpdateEnergy(FLYING);
   u -> UpdateFliedDistance(VUAV*flightTime);
@@ -399,6 +476,14 @@ void DoTask(Ptr<UAV> u)
   Simulator::Schedule(Seconds(flightTime), &UAV::UpdateEnergy, u, HANDLING);
   double visitedTime = s -> GetVisitedTime();
   u->UpdateFlightTime(flightTime + visitedTime);
+  myPair1 m1 = std::make_pair(s->GetId(), std::to_string(cellId) + std::to_string(uavId));
+  myPair m2 = std::make_pair(GetNow() + flightTime, GetNow() + flightTime + visitedTime);
+  workInfor[cellId].push_back(std::make_pair(m1, m2));
+  if(cellId == 0)
+  {
+    Simulator::Schedule(Seconds(flightTime), &AddPath, uavId);
+    length0 += VUAV*flightTime;
+  }
   Simulator::Schedule(Seconds(flightTime+visitedTime), &ChangeColor, cellId, s->GetId());
   Simulator::Schedule(Seconds(flightTime), &FindSite, u);
   Simulator::Schedule(Seconds(flightTime + visitedTime), &DoTask, u);
@@ -441,6 +526,7 @@ int IsFinish()
     }
     else if(finish[i] == 0)
     {
+      std::cout<<"cell "<<i<<" chua xong"<<std::endl;
       return 0;
     }
   }
@@ -451,14 +537,14 @@ int IsFinish(int cellId)
   //std::cout<<"goi ham IsFinish"<<std::endl;
   if(temp[cellId].GetSize() > 0)
   {
-   // std::cout<<"current <"<<std::endl;
+    std::cout<<"size > 0"<<std::endl;
     return 0;
   }
   for(int i = 0; i < NUM_UAV; i++)
   {
     if(uavState[cellId][i] == 1)
     {
-     // std::cout<<"state uav "<<i<<std::endl;
+      std::cout<<"uav "<<i<<" chua xong"<<std::endl;
       return 0;
     }
   }
@@ -488,6 +574,18 @@ void StopSimulation()
     }
     std::cout<<std::endl;
   }
+  for(int i = 0; i < NUM_CELL; i++)
+  {
+    std::cout<<"cell "<<i<<std::endl;
+    for(int j = 0; j < (int)workInfor[i].size(); j++)
+    {
+      mp m = workInfor[i][j];
+      myPair1 id = m.first;
+      myPair time = m.second;
+      std::cout<<"site "<<id.first<<", by "<<id.second<<", start = "<<time.first<<", stop = "<<time.second<<", pos "<<cell_site_list[i].Get(id.first)->GetSitePosition()<<std::endl;
+    }
+  }
+  std::cout<<"length0 = "<<length0<<std::endl;
   double cost = CalculateCost(fliedDistance);
   std::cout<<"Iterative R0 = "<<MAX_RESOURCE_PER_UAV<<", total site = "<<TOTAL_SITE<<std::endl;
   std::cout<<"Spanning time: "<<GetNow()/60.0<<" m"<<std::endl;
@@ -496,5 +594,6 @@ void StopSimulation()
   std::cout<<"Flied distance: "<<fliedDistance/1000.0<<" km"<<std::endl;
   std::cout<<"Benefit: "<<utility - cost<<std::endl;
   std::cout<<"Data: "<<dataLoad/1024.0/1024.0<<" MB"<<std::endl;
+  CreatePathPlot();
   Simulator::Stop();
 }

@@ -29,6 +29,7 @@
 #include "ns3/wifi-80211p-helper.h"
 #include "ns3/wave-mac-helper.h"
 #include "ns3/yans-wifi-helper.h"
+#include "ns3/gnuplot.h"
 #include <iostream>
 #include <math.h>
 #include <queue>
@@ -54,7 +55,7 @@ double dist[MAX_SITE_PER_CELL+1][MAX_SITE_PER_CELL+1];
 std::vector <int> path;
 int VISITED_ALL; // 
 double dp[MAX][MAX_SITE_PER_CELL+1]; //
-typedef std::pair < double, std::vector<int> > myPair;
+typedef std::pair < double, std::vector<int> > myPairs;
 std::map < std::pair<int, int>, std::vector<int> > myMap;
 //
 int finish[NUM_CELL];
@@ -69,6 +70,13 @@ double segmentFlightTime[NUM_CELL][MAX_SITE_PER_CELL];
 int numSite[NUM_CELL];
 std::vector<int> segmentsOfUav[NUM_CELL][NUM_UAV];
 std::vector<int> completedSites[NUM_CELL];
+typedef std::pair<double, double> myPair;
+typedef std::pair<int, std::string> myPair1;
+typedef std::pair<myPair1, myPair> mp;
+std::vector<mp> workInfor[NUM_CELL];
+double length0 = 0;
+//
+Gnuplot2dDataset p[NUM_UAV];
 //
 Vector GetPosition(Ptr<Node> node);
 void SetPosition(Ptr<Node> node, Vector pos);
@@ -83,7 +91,7 @@ void SetupGwPosition(int cellId);
 double CalculateCost(double distance);
 void CreateSite();
 //functions to solve TSP
-myPair TSP(int mask, int current, int n);
+myPairs TSP(int mask, int current, int n);
 //
 void Execute(int cellId);
 void SortSite(int cellId); //depend on urgency
@@ -116,6 +124,58 @@ Vector GetVelocity(Ptr<Node> node)
 void SetVelocity(Ptr<Node> node, Vector v)
 {
   node -> GetObject<ConstantVelocityMobilityModel>()->SetVelocity(v);
+}
+void AddPath(int uavId)
+{
+  Vector pos = GetPosition(uav[0].Get(uavId));
+  p[uavId].Add(pos.x, pos.y);
+}
+void CreatePathPlot ()
+{
+  std::string fileNameWithNoExtension = "local_"+std::to_string(TOTAL_SITE)+"_"+std::to_string((int)MAX_RESOURCE_PER_UAV);
+  std::string graphicsFileName        = fileNameWithNoExtension + ".png";
+  std::string plotFileName            = fileNameWithNoExtension + ".plt";
+  //std::string plotTitle               = "2-D Plot";
+  std::string dataTitle               = "uav";
+  // Instantiate the plot and set its title.
+  Gnuplot plot (graphicsFileName);
+ // plot.SetTitle (plotTitle);
+
+  // Make the graphics file, which the plot file will create when it
+  // is used with Gnuplot, be a PNG file.
+  plot.SetTerminal ("png");
+
+  // Rotate the plot 30 degrees around the x axis and then rotate the
+  // plot 120 degrees around the new z axis.
+  plot.AppendExtra ("set view 30, 120, 1.0, 1.0");
+
+  // Make the zero for the z-axis be in the x-axis and y-axis plane.
+  plot.AppendExtra ("set ticslevel 0");
+
+  // Set the labels for each axis.
+  plot.AppendExtra ("set xlabel \"Coordination X\"");
+  plot.AppendExtra ("set ylabel \"Coordination Y\"");
+  
+
+  // Set the ranges for the x and y axis.
+
+
+  // Instantiate the dataset, set its title, and make the points be
+  // connected by lines.
+  for(int i = 0; i < NUM_UAV; i++)
+  {
+    p[i].SetStyle (Gnuplot2dDataset::LINES);
+    p[i].SetTitle (dataTitle+std::to_string(i));
+    plot.AddDataset (p[i]);
+  }
+  // Open the plot file.
+  std::ofstream plotFile (plotFileName.c_str());
+
+  // Write the plot file.
+  plot.GenerateOutput (plotFile);
+
+  // Close the plot file.
+  plotFile.close ();
 }
 double Goto(Ptr<Node> node, Vector dest)
 {
@@ -232,9 +292,9 @@ void CreateSite()
 {
   // calculate number of sites for each cell
   
-  if(TOTAL_SITE > 80)
+  if(TOTAL_SITE > 90)
   {
-    std::cout<<"Max total site is "<<80<<std::endl;
+    std::cout<<"Max total site is "<<90<<std::endl;
     Simulator::Stop();
   }
   std::cout<<"Calculate number of sites for each cell"<<std::endl;
@@ -326,7 +386,7 @@ void LocalTSP(int cellId, int uavId)
     }
   }
   //Solve TSP
-  myPair m = TSP(1, 0, n);
+  myPairs m = TSP(1, 0, n);
   path = m.second; 
   std::cout<<"path: "<<std::endl;
   for(int i = 1; i <= n; i++)
@@ -337,7 +397,7 @@ void LocalTSP(int cellId, int uavId)
   std::cout<<"length : "<<m.first<<std::endl;
   return ;
 }
-myPair TSP(int mask,int current, int n) // 
+myPairs TSP(int mask,int current, int n) // 
 {   
   std::vector <int> v;
   v.push_back(current-1);
@@ -358,7 +418,7 @@ myPair TSP(int mask,int current, int n) //
     if((mask & (1<<k)) == 0) // k haven't been visited
     {
       int newMask = mask | (1<<k);
-      myPair m = TSP(newMask, k, n);
+      myPairs m = TSP(newMask, k, n);
       double newAns = dist[current][k] + m.first;           
       if(newAns < ans)
       {
@@ -696,6 +756,10 @@ void DoTask(int cellId, int uavId)
 {
   //std::cout<<GetNow()<<": goi ham dotask cell "<<cellId<<" uav "<<uavId<<std::endl;
   Ptr<UAV> u = uav[cellId].GetUav(uavId);
+  if(cellId == 0)
+  {
+    AddPath(uavId);
+  }
   int n = u->GetSiteSize();
   if(n == 0)
   {
@@ -705,6 +769,11 @@ void DoTask(int cellId, int uavId)
     u -> UpdateFlightTime(flightTime);
     u -> UpdateEnergy(FLYING);
     u -> UpdateFliedDistance(VUAV*flightTime);
+    if(cellId == 0)
+    {
+      length0 += VUAV*flightTime;
+      Simulator::Schedule(Seconds(flightTime), &AddPath, uavId);
+    }
     Simulator::Schedule(Seconds(flightTime), &NextRound, cellId, uavId);   
     Simulator::Schedule(Seconds(flightTime), &UAV::UpdateEnergy, u, STOP); 
     return;
@@ -719,6 +788,14 @@ void DoTask(int cellId, int uavId)
   u -> UpdateFliedDistance(VUAV*flightTime);
   double visitedTime = s -> GetVisitedTime();
   u->UpdateFlightTime(flightTime + visitedTime);
+  myPair1 m1 = std::make_pair(s->GetId(), std::to_string(cellId) + std::to_string(uavId));
+  myPair m2 = std::make_pair(GetNow() + flightTime, GetNow() + flightTime + visitedTime);
+  workInfor[cellId].push_back(std::make_pair(m1, m2));
+  if(cellId == 0)
+  {
+    length0 += VUAV*flightTime;
+    Simulator::Schedule(Seconds(flightTime), &AddPath, uavId);
+  }
   Simulator::Schedule(Seconds(flightTime+visitedTime), &ChangeColor, cellId, s->GetId());
   Simulator::Schedule(Seconds(flightTime), &UAV::UpdateEnergy, u, HANDLING);
   Simulator::Schedule(Seconds(flightTime + visitedTime), &DoTask, cellId, uavId);
@@ -806,6 +883,18 @@ void StopSimulation()
     }
     std::cout<<std::endl;
   }
+  for(int i = 0; i < NUM_CELL; i++)
+  {
+    std::cout<<"cell "<<i<<std::endl;
+    for(int j = 0; j < (int)workInfor[i].size(); j++)
+    {
+      mp m = workInfor[i][j];
+      myPair1 id = m.first;
+      myPair time = m.second;
+      std::cout<<"site "<<id.first<<", by "<<id.second<<", start = "<<time.first<<", stop = "<<time.second<<", pos "<<cell_site_list[i].Get(id.first)->GetSitePosition()<<std::endl;
+    }
+  }
+  std::cout<<"length0 = "<<length0<<std::endl;
   double cost = CalculateCost(fliedDistance);
   std::cout<<"Local TSP R0 = "<<MAX_RESOURCE_PER_UAV<<", total site = "<<TOTAL_SITE<<std::endl;
   std::cout<<"Spanning time: "<<GetNow()/60.0<<" m"<<std::endl;
@@ -814,5 +903,6 @@ void StopSimulation()
   std::cout<<"Flied distance: "<<fliedDistance/1000.0<<" km"<<std::endl;
   std::cout<<"Benefit: "<<utility - cost<<std::endl;
   std::cout<<"Data: "<<dataLoad/1024.0/1024.0<<" MB"<<std::endl;
+  CreatePathPlot();
   Simulator::Stop();
 }
