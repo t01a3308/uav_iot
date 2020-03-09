@@ -111,7 +111,7 @@ void AddPath(int uavId)
 }
 void CreatePathPlot ()
 {
-  std::string fileNameWithNoExtension = "iterative_"+std::to_string(TOTAL_SITE)+"_"+std::to_string((int)MAX_RESOURCE_PER_UAV);
+  std::string fileNameWithNoExtension = "path_iterative_"+std::to_string(TOTAL_SITE)+"_"+std::to_string((int)MAX_RESOURCE_PER_UAV);
   std::string graphicsFileName        = fileNameWithNoExtension + ".png";
   std::string plotFileName            = fileNameWithNoExtension + ".plt";
   //std::string plotTitle               = "2-D Plot";
@@ -348,12 +348,12 @@ void Execute(int cellId)
 void FindSite(Ptr<UAV> u)
 {
   int cellId = u -> GetCellId();
-  int uavId = u -> GetUavId();
-  std::cout<<GetNow()<<": cell "<<cellId<<", uav "<<uavId<<" find site "<<std::endl;
+  //int uavId = u -> GetUavId();
+  //std::cout<<GetNow()<<": cell "<<cellId<<", uav "<<uavId<<" find site "<<std::endl;
   int n = temp[cellId].GetSize();
   if(n == 0)
   {
-    std::cout<<GetNow()<<": cell "<<cellId<<", uav "<<uavId<<" khong co site "<<std::endl;
+   // std::cout<<GetNow()<<": cell "<<cellId<<", uav "<<uavId<<" khong co site "<<std::endl;
     return;
   }
   Vector pos = GetPosition(u);
@@ -371,14 +371,14 @@ void FindSite(Ptr<UAV> u)
   {
     if(rank >= n)
     {
-      std::cout<<GetNow()<<": cell "<<cellId<<", uav "<<uavId<<" khong tim duoc site "<<std::endl;
+     // std::cout<<GetNow()<<": cell "<<cellId<<", uav "<<uavId<<" khong tim duoc site "<<std::endl;
       return;
     }
     int id = FindId(distance, n, rank);
     Ptr<SITE> s = temp[cellId].Get(id);
     if(s -> GetResource() > currentResource)
     {
-      std::cout<<GetNow()<<": cell "<<cellId<<", uav "<<uavId<<" het resource"<<std::endl;
+     // std::cout<<GetNow()<<": cell "<<cellId<<", uav "<<uavId<<" het resource"<<std::endl;
       return;
     }
     // uav send to site
@@ -390,7 +390,7 @@ void FindSite(Ptr<UAV> u)
     int status = s->GetStatus();
     if(status == 0)
     {
-      std::cout<<GetNow()<<": cell "<<cellId<<", uav "<<uavId<<" select site "<<s->GetId()<<std::endl;
+     // std::cout<<GetNow()<<": cell "<<cellId<<", uav "<<uavId<<" select site "<<s->GetId()<<std::endl;
       s -> AddBidder(u, distance[id]);
       s -> SetStatus(1);
       u -> AddSite(s);
@@ -401,9 +401,9 @@ void FindSite(Ptr<UAV> u)
     {
       if(s -> CheckPrice(u, distance[id]))
       {
-        std::cout<<GetNow()<<": cell "<<cellId<<", uav "<<uavId<<" win site "<<s->GetId();
+       // std::cout<<GetNow()<<": cell "<<cellId<<", uav "<<uavId<<" win site "<<s->GetId();
         Ptr<UAV> bd = s -> GetBidder();
-        std::cout<<" from uav "<<bd->GetUavId()<<std::endl;
+        //std::cout<<" from uav "<<bd->GetUavId()<<std::endl;
         // site send to loser
         dataLoad += 3*UAV_PACKET_SIZE;
         bd -> IncreaseEnergy(3*ENERGY_RECEIVE);
@@ -441,7 +441,7 @@ void DoTask(Ptr<UAV> u)
   }
   if(u->GetSiteSize() == 0)
   {
-    std::cout<<GetNow()<<": cell "<<cellId<<", uav "<<uavId<<" go back"<<std::endl;
+   // std::cout<<GetNow()<<": cell "<<cellId<<", uav "<<uavId<<" go back"<<std::endl;
     double flightTime = Goto(u, GetPosition(gw[cellId].Get(0)));  
  
     u -> UpdateEnergy(FLYING);
@@ -463,11 +463,11 @@ void DoTask(Ptr<UAV> u)
   double newResource = u -> GetResource() - s -> GetResource();
   if(newResource < 0)
   {
-    std::cout<<"stopsim"<<std::endl;
+   // std::cout<<"stopsim"<<std::endl;
     Simulator::Stop();
   }
   u -> SetResource(newResource);
-  std::cout<<GetNow()<<": cell "<<cellId<<", uav "<<uavId<<" pos = "<<GetPosition(u)<<" go to site "<<s->GetId()<<" pos = "<<s->GetSitePosition()<<std::endl;
+ // std::cout<<GetNow()<<": cell "<<cellId<<", uav "<<uavId<<" pos = "<<GetPosition(u)<<" go to site "<<s->GetId()<<" pos = "<<s->GetSitePosition()<<std::endl;
   double flightTime = Goto(u, s -> GetSitePosition());
   u -> UpdateEnergy(FLYING);
   u -> UpdateFliedDistance(VUAV*flightTime);
@@ -494,7 +494,7 @@ void NextRound(Ptr<UAV> u)
 {
   int cellId = u -> GetCellId();
   int uavId = u -> GetUavId();
-  std::cout<<GetNow()<<": next round cell "<<cellId<<", uav "<<uavId<<std::endl;
+ // std::cout<<GetNow()<<": next round cell "<<cellId<<", uav "<<uavId<<std::endl;
   uavState[cellId][uavId] = 0;
   if(IsFinish(cellId))
   {
@@ -526,7 +526,7 @@ int IsFinish()
     }
     else if(finish[i] == 0)
     {
-      std::cout<<"cell "<<i<<" chua xong"<<std::endl;
+     // std::cout<<"cell "<<i<<" chua xong"<<std::endl;
       return 0;
     }
   }
@@ -537,14 +537,14 @@ int IsFinish(int cellId)
   //std::cout<<"goi ham IsFinish"<<std::endl;
   if(temp[cellId].GetSize() > 0)
   {
-    std::cout<<"size > 0"<<std::endl;
+   // std::cout<<"size > 0"<<std::endl;
     return 0;
   }
   for(int i = 0; i < NUM_UAV; i++)
   {
     if(uavState[cellId][i] == 1)
     {
-      std::cout<<"uav "<<i<<" chua xong"<<std::endl;
+     // std::cout<<"uav "<<i<<" chua xong"<<std::endl;
       return 0;
     }
   }
@@ -552,7 +552,7 @@ int IsFinish(int cellId)
 }
 void StopSimulation()
 {
-  std::cout<<GetNow()<<": stop sim"<<std::endl;
+ // std::cout<<GetNow()<<": stop sim"<<std::endl;
   double energy = 0;
   double fliedDistance = 0;
   double utility = 0;
@@ -565,26 +565,26 @@ void StopSimulation()
     utility += cell_site_list[i].GetUtility();
     flightTime += uav[i].CalculateFlightTime();
   }
-  for(int i = 0; i < NUM_CELL; i++)
-  {
-    std::cout<<"cell "<<i<<": ";
-    for(int j = 0; j < (int)completedSites[i].size(); j++)
-    {
-      std::cout<<completedSites[i][j]<<" ";
-    }
-    std::cout<<std::endl;
-  }
-  for(int i = 0; i < NUM_CELL; i++)
-  {
-    std::cout<<"cell "<<i<<std::endl;
-    for(int j = 0; j < (int)workInfor[i].size(); j++)
-    {
-      mp m = workInfor[i][j];
-      myPair1 id = m.first;
-      myPair time = m.second;
-      std::cout<<"site "<<id.first<<", by "<<id.second<<", start = "<<time.first<<", stop = "<<time.second<<", pos "<<cell_site_list[i].Get(id.first)->GetSitePosition()<<std::endl;
-    }
-  }
+  // for(int i = 0; i < NUM_CELL; i++)
+  // {
+  //   std::cout<<"cell "<<i<<": ";
+  //   for(int j = 0; j < (int)completedSites[i].size(); j++)
+  //   {
+  //     std::cout<<completedSites[i][j]<<" ";
+  //   }
+  //   std::cout<<std::endl;
+  // }
+  // for(int i = 0; i < NUM_CELL; i++)
+  // {
+  //   std::cout<<"cell "<<i<<std::endl;
+  //   for(int j = 0; j < (int)workInfor[i].size(); j++)
+  //   {
+  //     mp m = workInfor[i][j];
+  //     myPair1 id = m.first;
+  //     myPair time = m.second;
+  //     std::cout<<"site "<<id.first<<", by "<<id.second<<", start = "<<time.first<<", stop = "<<time.second<<", pos "<<cell_site_list[i].Get(id.first)->GetSitePosition()<<std::endl;
+  //   }
+  // }
   std::cout<<"length0 = "<<length0<<std::endl;
   double cost = CalculateCost(fliedDistance);
   std::cout<<"Iterative R0 = "<<MAX_RESOURCE_PER_UAV<<", total site = "<<TOTAL_SITE<<std::endl;

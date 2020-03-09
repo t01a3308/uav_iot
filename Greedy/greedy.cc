@@ -79,10 +79,12 @@ int main()
     UavSend(i);
     SensorSend(i);    
   }
-  anim = new AnimationInterface("global.xml");
+  anim = new AnimationInterface("greedy.xml");
   CreateSite();
   for(int i = 0; i < NUM_CELL; i++)
   {
+    Greedy(i);
+   // TSP(i);
     Execute(i);
   }
   
