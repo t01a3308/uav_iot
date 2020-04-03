@@ -79,7 +79,7 @@ int main()
     UavSend(i);
     SensorSend(i);    
   }
-  anim = new AnimationInterface("global.xml");
+  anim = new AnimationInterface("CVRP.xml");
   CreateSite();
   for(int i = 0; i < NUM_CELL; i++)
   {

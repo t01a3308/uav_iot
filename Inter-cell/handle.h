@@ -120,6 +120,7 @@ public:
 	double GetUtility();
 	double GetLength(Vector pos);
 	double GetResource();
+	void Pop();
 	void Clear();
 };
 void SiteList::Add(Ptr<SITE> site)
@@ -163,6 +164,10 @@ double SiteList::GetResource()
 		rs += m_list[i]->GetResource();
 	}
 	return rs;
+}
+void SiteList::Pop()
+{
+	m_list.erase(m_list.begin());
 }
 void SiteList::Clear()
 {

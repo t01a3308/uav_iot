@@ -30,7 +30,7 @@
 #define CELL_RADIUS 1000.0 // m // cell radius
 #define height 20.0
 //
-#define TOTAL_SITE 80
+#define TOTAL_SITE 90
 #define MAX_SITE_PER_CELL 21
 #define VUAV 5.0 // m/s
 #define MAX_RESOURCE_PER_UAV 300.0

@@ -271,9 +271,9 @@ void CreateSite()
 {
   // calculate number of sites for each cell
   
-  if(TOTAL_SITE > 80)
+  if(TOTAL_SITE > 90)
   {
-    std::cout<<"Max total site is "<<80<<std::endl;
+    std::cout<<"Max total site is "<<90<<std::endl;
     Simulator::Stop();
   }
   std::cout<<"Calculate number of sites for each cell"<<std::endl;

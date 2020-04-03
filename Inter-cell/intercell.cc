@@ -84,7 +84,6 @@ int main()
   CreateSite();
   for(int i = 0; i < NUM_CELL; i++)
   {
-    GlobalTSP(i);
     Execute(i);
   }
   

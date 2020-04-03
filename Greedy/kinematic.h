@@ -57,6 +57,7 @@ int uavState[NUM_CELL][NUM_UAV];
 SiteList cell_site_list[NUM_CELL];
 SiteList segment[NUM_CELL][MAX_SITE_PER_CELL];
 double segmentFlightTime[NUM_CELL][MAX_SITE_PER_CELL];
+double segmentDistance[NUM_CELL][MAX_SITE_PER_CELL];
 int mark[NUM_CELL][MAX_SITE_PER_CELL];
 int numSegment[NUM_CELL];
 int finish[NUM_CELL];
@@ -365,7 +366,7 @@ void Greedy(int cellId)
     }
   }
   // write dist matrix and resource of sites 
-  std::string filename = "CVRP/dist_"+std::to_string(cellId)+"_"+std::to_string(TOTAL_SITE)+"_"+std::to_string((int)MAX_RESOURCE_PER_UAV)+".txt";
+  std::string filename = "input_cvrp/dist_"+std::to_string(cellId)+"_"+std::to_string(TOTAL_SITE)+"_"+std::to_string((int)MAX_RESOURCE_PER_UAV)+".txt";
   ofstream myfile;
   myfile.open(filename, std::ios::out | std::ios::trunc);
   for(int i = 0; i <= n; i++)
@@ -384,7 +385,7 @@ void Greedy(int cellId)
     }
   }
   myfile.close();
-  filename = "CVRP/demand_"+std::to_string(cellId)+"_"+std::to_string(TOTAL_SITE)+"_"+std::to_string((int)MAX_RESOURCE_PER_UAV)+".txt";
+  filename = "input_cvrp/demand_"+std::to_string(cellId)+"_"+std::to_string(TOTAL_SITE)+"_"+std::to_string((int)MAX_RESOURCE_PER_UAV)+".txt";
   myfile.open(filename, std::ios::out | std::ios::trunc);
   myfile<<0<<" ";
   for(int i = 0 ; i < n; i++)
@@ -478,22 +479,23 @@ void Execute(int cellId)
     FindSegment(cellId, i); 
   }
 }
-void CalculateSegmentFlightTime(int cellId)
+void CalculateSegmentFlightTime(int cellId, int i) // i is segmentId
 {
-  for(int i = 0; i < numSegment[cellId]; i++)
-  {
-    segmentFlightTime[cellId][i] = 0;
+  segmentFlightTime[cellId][i] = 0;
+  segmentDistance[cellId][i] = 0;
     int n = segment[cellId][i].GetSize();
     //
     Ptr<SITE> first = segment[cellId][i].Get(0);
     Vector pos = first->GetSitePosition();
     double dt = CalculateDistance(pos, GetPosition(gw[cellId].Get(0)));
+    segmentDistance[cellId][i] += dt;
     double t = dt/VUAV;
     segmentFlightTime[cellId][i] += t;
     //
     Ptr<SITE> last = segment[cellId][i].Get(n-1);
     Vector pos1 = last->GetSitePosition();
     double dt1 = CalculateDistance(pos1, GetPosition(gw[cellId].Get(0)));
+    segmentDistance[cellId][i] += dt1;
     double t1= dt1/VUAV;
     segmentFlightTime[cellId][i] += t1;
     for(int j = 0; j < n; j++)
@@ -507,16 +509,25 @@ void CalculateSegmentFlightTime(int cellId)
         Vector p1 = s1->GetSitePosition();
         Vector p2 = s2->GetSitePosition();
         double d = CalculateDistance(p1, p2);
+        segmentDistance[cellId][i] += d;
         double time1 = d/VUAV;
         segmentFlightTime[cellId][i] += time1;
       }
     }
     segmentFlightTime[cellId][i] /= 60.0;
+    segmentDistance[cellId][i] /= 1000.0;
+}
+void CalculateSegmentFlightTime(int cellId)
+{
+  for(int i = 0; i < numSegment[cellId]; i++)
+  {
+    CalculateSegmentFlightTime(cellId, i);
   }
 }
 void PrintSegmentInformation(int cellId)
 {
   std::cout<<"cell "<<cellId<<std::endl;
+  double d = 0;
   for(int i = 0; i < numSegment[cellId]; i++)
   {
     std::cout<<"segment "<<i<<": ";
@@ -526,8 +537,10 @@ void PrintSegmentInformation(int cellId)
       int id = s->GetId();
       std::cout<<id<<" ";
     }
-    std::cout<<"\t flightTime: "<<segmentFlightTime[cellId][i]<<std::endl;
+    d += segmentDistance[cellId][i];
+    std::cout<<"\t flightTime: "<<segmentFlightTime[cellId][i]<<" distance: \t"<<segmentDistance[cellId][i]<<std::endl;
   }
+  std::cout<<"total distance: "<<d<<std::endl;
 }
 void AllocateSegment(int cellId)
 {
@@ -758,7 +771,7 @@ void DoTask(Ptr<UAV> u)
   }
   if(u->GetSiteSize() == 0)
   {
-    std::cout<<GetNow()<<": cell "<<cellId<<", uav "<<uavId<<" go back"<<std::endl;
+  //  std::cout<<GetNow()<<": cell "<<cellId<<", uav "<<uavId<<" go back"<<std::endl;
     double flightTime = Goto(u, GetPosition(gw[cellId].Get(0)));    
     u -> UpdateFlightTime(flightTime);
     u -> UpdateEnergy(FLYING);
@@ -776,7 +789,7 @@ void DoTask(Ptr<UAV> u)
   numSite[cellId]++;
   Ptr<SITE> s = u->GetSite();
   completedSites[cellId].push_back(s->GetId());
-  std::cout<<GetNow()<<": cell "<<cellId<<", uav "<<uavId<<" go to site "<<s->GetId()<<std::endl;  
+  //std::cout<<GetNow()<<": cell "<<cellId<<", uav "<<uavId<<" go to site "<<s->GetId()<<std::endl;  
   double flightTime = Goto(u, s -> GetSitePosition());
   u -> UpdateEnergy(FLYING);
   u -> UpdateFliedDistance(VUAV*flightTime);
@@ -803,7 +816,7 @@ void NextRound(Ptr<UAV> u)
   uavState[cellId][uavId] = 0;
   if(IsFinish(cellId))
   {
-    std::cout<<GetNow()<<": cell "<<cellId<<" uav "<<uavId<<" xong"<<std::endl;
+   // std::cout<<GetNow()<<": cell "<<cellId<<" uav "<<uavId<<" xong"<<std::endl;
     finish[cellId] = 1;
     if(IsFinish())
     {
@@ -812,7 +825,7 @@ void NextRound(Ptr<UAV> u)
   }
   else
   {
-    std::cout<<GetNow()<<": next round cell "<<cellId<<", uav "<<uavId<<std::endl;
+   // std::cout<<GetNow()<<": next round cell "<<cellId<<", uav "<<uavId<<std::endl;
     Simulator::Schedule(Seconds(60*INTERVAL_BETWEEN_TWO_ROUNDS), &FindSegment, cellId, uavId);
   }
 }
@@ -879,26 +892,7 @@ void StopSimulation()
     time += t;
    // std::cout<<"time: "<<t<<std::endl;
   }
-  for(int i = 0; i < NUM_CELL; i++)
-  {
-    std::cout<<"cell "<<i<<": ";
-    for(int j = 0; j < (int)completedSites[i].size(); j++)
-    {
-      std::cout<<completedSites[i][j]<<" ";
-    }
-    std::cout<<std::endl;
-  }
-  for(int i = 0; i < NUM_CELL; i++)
-  {
-    std::cout<<"cell "<<i<<std::endl;
-    for(int j = 0; j < (int)workInfor[i].size(); j++)
-    {
-      mp m = workInfor[i][j];
-      myPair1 id = m.first;
-      myPair time = m.second;
-      std::cout<<"site "<<id.first<<", by "<<id.second<<", start = "<<time.first<<", stop = "<<time.second<<", pos "<<cell_site_list[i].Get(id.first)->GetSitePosition()<<std::endl;
-    }
-  }
+
   std::cout<<"length0 = "<<length0<<std::endl;
   double cost = CalculateCost(fliedDistance);
   std::cout<<"Greedy R0 = "<<MAX_RESOURCE_PER_UAV<<", total site = "<<TOTAL_SITE<<std::endl;

@@ -67,6 +67,7 @@ SiteList segment[NUM_CELL][MAX_SITE_PER_CELL];
 int numSegment[NUM_CELL];
 int mark[NUM_CELL][MAX_SITE_PER_CELL];
 double segmentFlightTime[NUM_CELL][MAX_SITE_PER_CELL];
+double segmentDistance[NUM_CELL][MAX_SITE_PER_CELL];
 int numSite[NUM_CELL];
 std::vector<int> segmentsOfUav[NUM_CELL][NUM_UAV];
 std::vector<int> completedSites[NUM_CELL];
@@ -485,22 +486,23 @@ void SortSite(int cellId)
   }
 }
 
-void CalculateSegmentFlightTime(int cellId)
+void CalculateSegmentFlightTime(int cellId, int i) // i is segmentId
 {
-  for(int i = 0; i < numSegment[cellId]; i++)
-  {
-    segmentFlightTime[cellId][i] = 0;
+  segmentFlightTime[cellId][i] = 0;
+  segmentDistance[cellId][i] = 0;
     int n = segment[cellId][i].GetSize();
     //
     Ptr<SITE> first = segment[cellId][i].Get(0);
     Vector pos = first->GetSitePosition();
     double dt = CalculateDistance(pos, GetPosition(gw[cellId].Get(0)));
+    segmentDistance[cellId][i] += dt;
     double t = dt/VUAV;
     segmentFlightTime[cellId][i] += t;
     //
     Ptr<SITE> last = segment[cellId][i].Get(n-1);
     Vector pos1 = last->GetSitePosition();
     double dt1 = CalculateDistance(pos1, GetPosition(gw[cellId].Get(0)));
+    segmentDistance[cellId][i] += dt1;
     double t1= dt1/VUAV;
     segmentFlightTime[cellId][i] += t1;
     for(int j = 0; j < n; j++)
@@ -514,16 +516,25 @@ void CalculateSegmentFlightTime(int cellId)
         Vector p1 = s1->GetSitePosition();
         Vector p2 = s2->GetSitePosition();
         double d = CalculateDistance(p1, p2);
+        segmentDistance[cellId][i] += d;
         double time1 = d/VUAV;
         segmentFlightTime[cellId][i] += time1;
       }
     }
     segmentFlightTime[cellId][i] /= 60.0;
+    segmentDistance[cellId][i] /= 1000.0;
+}
+void CalculateSegmentFlightTime(int cellId)
+{
+  for(int i = 0; i < numSegment[cellId]; i++)
+  {
+    CalculateSegmentFlightTime(cellId, i);
   }
 }
 void PrintSegmentInformation(int cellId)
 {
   std::cout<<"cell "<<cellId<<std::endl;
+  double d = 0;
   for(int i = 0; i < numSegment[cellId]; i++)
   {
     std::cout<<"segment "<<i<<": ";
@@ -533,8 +544,10 @@ void PrintSegmentInformation(int cellId)
       int id = s->GetId();
       std::cout<<id<<" ";
     }
-    std::cout<<"\t flightTime: "<<segmentFlightTime[cellId][i]<<std::endl;
+    d += segmentDistance[cellId][i];
+    std::cout<<"\t flightTime: "<<segmentFlightTime[cellId][i]<<" distance: \t"<<segmentDistance[cellId][i]<<std::endl;
   }
+  std::cout<<"total distance: "<<d<<std::endl;
 }
 void AllocateSegment(int cellId)
 {
