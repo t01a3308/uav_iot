@@ -20,8 +20,8 @@
  *          Nguyen Pham Van <nguyen.pv152737@sis.hust.edu.vn>
  */
 /*Global parameters*/
-#define NUM_UAV 2 //per cell
-#define NUM_SENSOR 30 // per cell
+#define NUM_UAV 6 //per cell
+#define NUM_SENSOR 200 // per cell
 #define NUM_GW 1 //per cell
 #define NUM_CELL 7
 #define MAX_NUM_CELL 37
@@ -30,10 +30,10 @@
 #define CELL_RADIUS 1000.0 // m // cell radius
 #define height 20.0
 //
-#define TOTAL_SITE 80
+#define TOTAL_SITE 400 // all cells
 #define MAX_SITE_PER_CELL 21
 #define VUAV 5.0 // m/s
-#define MAX_RESOURCE_PER_UAV 900.0
+#define MAX_RESOURCE_PER_UAV 200
 //sensor data
 #define MIN_VALUE 50.0
 #define MAX_VALUE 100.0
@@ -43,7 +43,8 @@
 #define Rd 10.0
 //#define ALPHA_FACTOR 1
 #define RESOURCE_FACTOR 1.0
-#define VISITED_TIME_FACTOR 2.0
+#define VISITED_TIME_FACTOR 0.3
+#define VISITED_TIME_UTILITY_FACTOR 20.0
 #define MIN_URGENCY 100
 #define MAX_URGENCY 200
 //power 

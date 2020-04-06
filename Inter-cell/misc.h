@@ -117,20 +117,69 @@ void ReadDataIntoArray(std::string filename, std::vector< std::vector<int> > &ar
 			}
 			arr.push_back(r);
 		}
-		std::cout<<"num row = "<<arr.size()<<std::endl;
-		for(int i = 0; i < (int)arr.size(); i++)
-		{
-			std::vector<int> v = arr[i];
-			int s = v.size();
-			for(int j = 0; j < s; j++)
-			{
-				std::cout<<arr[i][j]<<" ";
-			}
-			std::cout<<std::endl;
-		}
+		// std::cout<<"num row = "<<arr.size()<<std::endl;
+		// for(int i = 0; i < (int)arr.size(); i++)
+		// {
+		// 	std::vector<int> v = arr[i];
+		// 	int s = v.size();
+		// 	for(int j = 0; j < s; j++)
+		// 	{
+		// 		std::cout<<arr[i][j]<<" ";
+		// 	}
+		// 	std::cout<<std::endl;
+		// }
 	}
 	else
 	{
 		std::cout<<"cannot open file "<<filename<<std::endl;
 	}
+}
+void ReadData(std::string filename, std::vector<double> &arr)
+{
+ // std::cout<<filename<<std::endl;
+  std::string line;
+  std::ifstream myfile(filename.c_str());
+  if(myfile.is_open())
+  {
+    int row = 0;
+    while(getline(myfile, line))
+    {
+      int size = line.size();
+      if(line.size() == 0)
+      {
+        continue;
+      }
+      //std::cout<<"line "<<row<<" size = "<<line.size()<<std::endl;
+      row++;
+      std::string temp;
+      for(int i = 0; i < size; i++)
+      {
+        if(line[i] == ' ')
+        {
+          arr.push_back(atof(temp.c_str()));
+          temp.clear();
+        }
+        else if(i == size-1)
+        {
+          temp.push_back(line[i]);
+          arr.push_back(atof(temp.c_str()));
+          temp.clear();
+        }
+        else
+        {
+          temp.push_back(line[i]);
+        }
+      }
+    }
+    // std::cout<<"size = "<<arr.size()<<std::endl;
+    // for(int i = 0; i < (int)arr.size(); i++)
+    // {
+    //     std::cout<<arr[i]<<" ";
+    // }
+    // std::cout<<std::endl;
+  }
+  else
+  {
+    std::cout<<"cannot open file "<<filename<<std::endl;
+  }
 }

@@ -45,27 +45,28 @@ private:
 	
 	Vector position;
     double visited_time; //second	
-	double resource;
+	int resource;
 	double urgency;
 	double w;
 	double utility;
 	int id;
 public:
-	SITE(Vector p, double data_value, int idx);
+	SITE(Vector p, int data_value, int idx);
+	SITE(Vector p, double visitedtime, int res, double uti, double urg, int idx);
 	~SITE()
 	{
 
 	};
 	Vector GetSitePosition();
 	double GetVisitedTime();
-	double GetResource();
+	int GetResource();
 	double GetUrgency();
 	double GetUtility();
 	int GetId();
 	//double sprayVol(double c_h, double c_l);
 	//double dustVol(void);
 };
-SITE::SITE(Vector p, double data_value, int idx)
+SITE::SITE(Vector p, int data_value, int idx)
 {
 	Ptr<UniformRandomVariable> rd = CreateObject<UniformRandomVariable>();
 	position = Vector(p.x, p.y, height);
@@ -73,8 +74,18 @@ SITE::SITE(Vector p, double data_value, int idx)
 	resource = RESOURCE_FACTOR * data_value;
 	urgency = rd -> GetValue(MIN_URGENCY, MAX_URGENCY);
 	w = rd -> GetValue(1.0, 2.0);
-	utility = K_FACTOR * w * resource * urgency;
+	utility = K_FACTOR * w * resource * urgency - VISITED_TIME_UTILITY_FACTOR*visited_time;
 	id = idx;
+}
+SITE::SITE(Vector p, double visitedtime, int res, double uti, double urg, int idx)
+{
+	position = Vector(p.x, p.y, height);
+	visited_time = visitedtime;
+	resource = res;
+	utility = uti;
+	urgency = urg;
+	id = idx;
+	//std::cout<<"site "<<idx<<", pos: "<<position<<", visitedtime = "<<visited_time<<", res = "<<resource<<", utility = "<<utility<<", urg = "<<urgency<<std::endl;
 }
 Vector SITE::GetSitePosition()
 {
@@ -84,7 +95,7 @@ double SITE::GetVisitedTime()
 {
 	return visited_time;
 }
-double SITE::GetResource()
+int SITE::GetResource()
 {
 	return resource;
 }
@@ -121,6 +132,7 @@ public:
 	double GetLength(Vector pos);
 	double GetResource();
 	void Pop();
+	void Print();
 	void Clear();
 };
 void SiteList::Add(Ptr<SITE> site)
@@ -168,6 +180,15 @@ double SiteList::GetResource()
 void SiteList::Pop()
 {
 	m_list.erase(m_list.begin());
+}
+void SiteList::Print()
+{
+	int n = (int)m_list.size();
+	for(int i = 0; i < n; i++)
+	{
+		std::cout<<m_list[i]->GetId()<<" ";
+	}
+	std::cout<<std::endl;
 }
 void SiteList::Clear()
 {

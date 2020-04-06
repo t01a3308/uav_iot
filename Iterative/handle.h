@@ -45,7 +45,7 @@ private:
 	
 	Vector position;
     double visited_time; //second	
-	double resource;
+	int resource;
 	double urgency;
 	double w;
 	double utility;
@@ -54,7 +54,7 @@ private:
                                               // 1 - in auction
 	vector < pair<Ptr<UAV>, double > > bidder;
 public:
-	SITE(Vector p, double data_value, int idx);
+	SITE(Vector p, int data_value, int idx);
 	~SITE()
 	{
 
@@ -72,7 +72,7 @@ public:
 	int GetStatus();
 	void SetStatus(int sta);
 };
-SITE::SITE(Vector p, double data_value, int idx)
+SITE::SITE(Vector p, int data_value, int idx)
 {
 	Ptr<UniformRandomVariable> rd = CreateObject<UniformRandomVariable>();
 	position = Vector(p.x, p.y, height);
@@ -80,7 +80,7 @@ SITE::SITE(Vector p, double data_value, int idx)
 	resource = RESOURCE_FACTOR * data_value;
 	urgency = rd -> GetValue(MIN_URGENCY, MAX_URGENCY);
 	w = rd -> GetValue(1.0, 2.0);
-	utility = K_FACTOR * w * resource * urgency;
+	utility = K_FACTOR * w * resource * urgency - VISITED_TIME_UTILITY_FACTOR*visited_time;
 	id = idx;
 }
 Vector SITE::GetSitePosition()

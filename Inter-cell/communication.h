@@ -158,12 +158,3 @@ void UavSend(int cellId)
   }
   Simulator::Schedule(Seconds(60*UAV_INTERVAL), &UavSend, cellId);
 }
-void SensorSend(int cellId)
-{
-  Ptr<UniformRandomVariable> rd = CreateObject<UniformRandomVariable>();
-  for(int i = 0; i < NUM_SENSOR; i++)
-  {
-    Simulator::Schedule(Seconds(rd->GetValue(0, 60)), &SendPacket, sensor[cellId].Get(i), gw[cellId].Get(0), SENSOR_NUM_PACKET, SENSOR_PACKET_SIZE, INTERVAL_BETWEEN_TWO_PACKETS);
-  }
-  Simulator::Schedule(Seconds(60*SENSOR_INTERVAL), &SensorSend, cellId);
-}

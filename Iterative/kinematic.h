@@ -269,13 +269,6 @@ void SetupGwPosition(int cellId)
 }
 void CreateSite()
 {
-  // calculate number of sites for each cell
-  
-  if(TOTAL_SITE > 90)
-  {
-    std::cout<<"Max total site is "<<90<<std::endl;
-    Simulator::Stop();
-  }
   std::cout<<"Calculate number of sites for each cell"<<std::endl;
   int t = TOTAL_SITE;
   int k = 0, id = 0;
@@ -316,12 +309,12 @@ void CreateSite()
     finish[i] = 0;
     for(int j = 0; j < numberOfSites[i]; j++)
     {
-      double data = rd -> GetValue(MIN_VALUE, MAX_VALUE);
+      double data = (int)rd -> GetValue(MIN_VALUE, MAX_VALUE);
       Ptr<SITE> s = CreateObject<SITE>(GetPosition(sensor[i].Get(j)), data, j);
       cell_site_list[i].Add(s);
       temp[i].Add(s);
-      anim->UpdateNodeSize(sensor[i].Get(j)->GetId(), 100, 100);
-      anim->UpdateNodeColor(sensor[i].Get(j)->GetId(), 0, 255, 0);
+     // anim->UpdateNodeSize(sensor[i].Get(j)->GetId(), 100, 100);
+     // anim->UpdateNodeColor(sensor[i].Get(j)->GetId(), 0, 255, 0);
     }
   }
 }
@@ -331,13 +324,13 @@ double CalculateCost(double distance)
 }
 void Execute(int cellId)
 { 
-  std::cout<<"execute cell "<<cellId<<std::endl;
+ // std::cout<<"execute cell "<<cellId<<std::endl;
 
   numSite[cellId] = 0;
   for(int i = 0; i < NUM_UAV; i++)
   {
-    anim->UpdateNodeSize(uav[cellId].Get(i)->GetId(), 200, 200);
-    anim->UpdateNodeColor(uav[cellId].Get(i)->GetId(), 0, 0, 255);
+    //anim->UpdateNodeSize(uav[cellId].Get(i)->GetId(), 200, 200);
+    //anim->UpdateNodeColor(uav[cellId].Get(i)->GetId(), 0, 0, 255);
     uavState[cellId][i] = 0;
   }
   for(int i = 0 ; i < NUM_UAV; i++)
@@ -425,7 +418,7 @@ void FindSite(Ptr<UAV> u)
 }
 void ChangeColor(int cellId, int sensorId)
 {
-  anim->UpdateNodeColor(sensor[cellId].Get(sensorId)->GetId(), 255, 0, 0);
+ // anim->UpdateNodeColor(sensor[cellId].Get(sensorId)->GetId(), 255, 0, 0);
 }
 void DoTask(Ptr<UAV> u)
 {

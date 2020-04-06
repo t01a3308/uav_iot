@@ -76,17 +76,11 @@ int main()
     SetupGwPosition(i);     
     SetupCommunication(i);
     SetupApplication(i);
-    UavSend(i);
-    SensorSend(i);
-    
+    UavSend(i);    
   }
-  anim = new AnimationInterface("inter-cell.xml");
-  CreateSite();
-  for(int i = 0; i < NUM_CELL; i++)
-  {
-    Execute(i);
-  }
-  
+ // anim = new AnimationInterface("inter-cell.xml");
+  CalculateNumberOfSites();
+  NewScenario();;
   Simulator::Run();
   Simulator::Destroy();
   
