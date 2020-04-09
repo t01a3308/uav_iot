@@ -78,7 +78,7 @@ int main()
     SetupApplication(i);
     UavSend(i);    
   }
- // anim = new AnimationInterface("inter-cell.xml");
+ // anim = new AnimationInterface("animation/inter-cell.xml");
   CalculateNumberOfSites();
   NewScenario();;
   Simulator::Run();

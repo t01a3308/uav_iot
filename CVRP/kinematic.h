@@ -136,7 +136,7 @@ void AddPath(int uavId)
 }
 void CreatePathPlot ()
 {
-  std::string fileNameWithNoExtension = "path_CVRP_"+std::to_string(TOTAL_SITE)+"_"+std::to_string((int)MAX_RESOURCE_PER_UAV);
+  std::string fileNameWithNoExtension = "path/path_CVRP_"+std::to_string(TOTAL_SITE)+"_"+std::to_string((int)MAX_RESOURCE_PER_UAV);
   std::string graphicsFileName        = fileNameWithNoExtension + ".png";
   std::string plotFileName            = fileNameWithNoExtension + ".plt";
   //std::string plotTitle               = "2-D Plot";

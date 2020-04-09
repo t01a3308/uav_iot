@@ -136,7 +136,7 @@ void AddPath(int uavId, int cellId)
 }
 void CreatePathPlot ()
 {
-  std::string fileNameWithNoExtension = "path_intercell_"+std::to_string(TOTAL_SITE)+"_"+std::to_string((int)MAX_RESOURCE_PER_UAV);
+  std::string fileNameWithNoExtension = "path/path_intercell_"+std::to_string(TOTAL_SITE)+"_"+std::to_string((int)MAX_RESOURCE_PER_UAV);
   std::string graphicsFileName        = fileNameWithNoExtension + ".png";
   std::string plotFileName            = fileNameWithNoExtension + ".plt";
   //std::string plotTitle               = "2-D Plot";
@@ -918,7 +918,7 @@ void DoTask(Ptr<UAV> u)
 {
   int uavId = u -> GetUavId();
   int cellId = u -> GetCellId();
-  if(cellId == 0 || cellId == 6)
+  if(cellId == 0 || cellId == 6 && numScenario == 0)
   {
     AddPath(uavId, cellId);
   }
@@ -929,7 +929,7 @@ void DoTask(Ptr<UAV> u)
     u -> UpdateFlightTime(flightTime);
     u -> UpdateEnergy(FLYING);
     u -> UpdateFliedDistance(VUAV*flightTime);
-    if(cellId == 0 || cellId == 6)
+    if(cellId == 0 || cellId == 6 && numScenario == 0)
     {
       length0 += VUAV*flightTime;
       Simulator::Schedule(Seconds(flightTime), &AddPath, uavId, cellId);
@@ -952,7 +952,7 @@ void DoTask(Ptr<UAV> u)
   myPair1 m1 = std::make_pair(s->GetId(), std::to_string(cellId) + std::to_string(uavId));
   myPair m2 = std::make_pair(GetNow() + flightTime, GetNow() + flightTime + visitedTime);
   workInfor[cellId].push_back(std::make_pair(m1, m2));
-  if(cellId == 0 || cellId == 6)
+  if(cellId == 0 || cellId == 6 && numScenario == 0)
   {
     length0 += VUAV*flightTime;
     Simulator::Schedule(Seconds(flightTime), &AddPath, uavId, cellId);

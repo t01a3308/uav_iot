@@ -125,7 +125,7 @@ public:
 	};
 	~SiteList()
 	{
-
+		m_list.clear();
 	};
 	void Add(Ptr<SITE> site);
 	Ptr<SITE> Get(uint32_t i);
