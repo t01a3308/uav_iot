@@ -35,8 +35,8 @@
 #include <list>
 #include "macro_param.h"
 #include "communication.h"
-#define NUM_CHROMOSOME 50
-#define NUM_ITERATOR 500
+#define NUM_CHROMOSOME 20
+#define NUM_ITERATOR 100
 using namespace ns3;
 extern AnimationInterface *anim;
 extern double dataLoad;
@@ -52,15 +52,15 @@ double velocity[MAX_SITE_PER_CELL][MAX_SITE_PER_CELL];
 double mass[MAX_SITE_PER_CELL][MAX_SITE_PER_CELL];
 std::vector<int> chromosome[NUM_CHROMOSOME];
 std::vector<int> children;
-int value777[NUM_CHROMOSOME][NUM_UAV-1];
-int value777_children[NUM_UAV-1];
+int value777[NUM_CHROMOSOME][MAX_SITE_PER_CELL-1];
+int value777_children[MAX_SITE_PER_CELL-1];
 double fitness[NUM_CHROMOSOME];
 int numIterator;
 std::vector<int> gelsga_out[NUM_CELL];
 std::vector<int> path[NUM_CELL];
 //
 int numberOfSites[NUM_CELL-1];
-
+int resourceOfSegment[NUM_CELL][MAX_SITE_PER_CELL];
 uint16_t idCurrentSite[NUM_CELL];
 int uavState[NUM_CELL][NUM_UAV];
 SiteList cell_site_list[NUM_CELL];
@@ -78,7 +78,20 @@ typedef std::pair<int, std::string> myPair1;
 typedef std::pair<myPair1, myPair> mp;
 std::vector<mp> workInfor[NUM_CELL];
 double length0 = 0;
+int num_vehicles[NUM_CELL];
 //
+//
+int numScenario = 0;
+double Tbegin = 0;
+double Tend = 0;
+double cumulativeSpanningTime = 0;
+double cumulativeFlightTime = 0;
+double cumulativeFlightDistance = 0;
+double cumulativeEnergy = 0;
+double cumulativeBenefit = 0;
+double cumulativeData = 0;
+//
+
 Gnuplot2dDataset p[NUM_UAV];
 //
 Vector GetPosition(Ptr<Node> node);
@@ -97,11 +110,11 @@ std::vector<int> CreateChromosome(int);
 void CreatePopulation(int cellId);
 double CalculateFitness(std::vector<int> &chro, int cellId);
 void CalculateFitness(int cellId);
-void CrossOverType1(int father, int mother);
-void CrossOverType2(int father, int mother);
+void CrossOverType1(int father, int mother, int cellId);
+void CrossOverType2(int father, int mother, int cellId);
 void CrossOver(int);
-void MutationType1();
-void MutationType2();
+void MutationType1(int);
+void MutationType2(int);
 void Mutation(int);
 void Terminate(int cellId);
 void GELS(int cellId);
@@ -116,7 +129,10 @@ void DoTask(Ptr<UAV> u);
 void NextRound(Ptr<UAV> u);
 int IsFinish();
 int IsFinish(int cellId);
+void EndScenario();
 void StopSimulation();
+void Reset();
+void NewScenario();
 /*Function implementation goes here*/
 
 void SetPosition(Ptr<Node> node, Vector pos)
@@ -146,7 +162,7 @@ void AddPath(int uavId)
 }
 void CreatePathPlot ()
 {
-  std::string fileNameWithNoExtension = "path_gelsga_"+std::to_string(TOTAL_SITE)+"_"+std::to_string((int)MAX_RESOURCE_PER_UAV);
+  std::string fileNameWithNoExtension = "path/gelsga_"+std::to_string(TOTAL_SITE)+"_"+std::to_string((int)MAX_RESOURCE_PER_UAV);
   std::string graphicsFileName        = fileNameWithNoExtension + ".png";
   std::string plotFileName            = fileNameWithNoExtension + ".plt";
   //std::string plotTitle               = "2-D Plot";
@@ -301,37 +317,34 @@ void SetupGwPosition(int cellId)
     SetPosition(gw[cellId].Get(i), Vector(X[cellId], Y[cellId], height));
   }
 }
-void CreateSite()
+void CalculateNumberOfSites()
 {
-  // calculate number of sites for each cell
-  
-  if(TOTAL_SITE > 80)
+  // std::cout<<"Calculate number of sites for each cell"<<std::endl;
+  for(int i = 0; i < NUM_CELL-1; i++)
   {
-    std::cout<<"Max total site is "<<80<<std::endl;
-    Simulator::Stop();
+    numberOfSites[i] = 0;
   }
-  std::cout<<"Calculate number of sites for each cell"<<std::endl;
-  int temp = TOTAL_SITE;
+  int t = TOTAL_SITE;
   int k = 0, id = 0;
-  while(temp > 0)
+  while(t > 0)
   {
     if(k % 2 != 0)
     {
       if(id == 0)
       {
         numberOfSites[id] += 2;
-        temp -= 2;
+        t -= 2;
       }
       else
       {
         numberOfSites[id]++;
-        temp--;
+        t--;
       }     
     }
     else
     {
       numberOfSites[id]++;
-      temp --;
+      t --;
     }
     id++;
     if(id == NUM_CELL-1)
@@ -340,21 +353,201 @@ void CreateSite()
       k++;
     }
   }
+  for(int cellId = 0; cellId < NUM_CELL-1; cellId++)
+  {
+    num_vehicles[cellId] = (int)numberOfSites[cellId]*RESOURCE_FACTOR*MAX_VALUE/MAX_RESOURCE_PER_UAV + 1;
+   // std::cout<<"num_vehicles "<<cellId<<" = "<<num_vehicles[cellId]<<std::endl;
+  }
+}
+void CreateSite()
+{
   //create site
-  std::cout<<"Creating sites"<<std::endl;
+ // std::cout<<"Creating sites"<<std::endl;
   finish[NUM_CELL-1] = 1;
   Ptr<UniformRandomVariable> rd = CreateObject<UniformRandomVariable>();
   for(int i = 0; i < NUM_CELL - 1; i++)
   {
+   // std::cout<<"cell "<<i<<" has "<<numberOfSites[i]<<" sites"<<std::endl;
     finish[i] = 0;
     for(int j = 0; j < numberOfSites[i]; j++)
     {
-      double data = rd -> GetValue(MIN_VALUE, MAX_VALUE);
-      Ptr<SITE> s = CreateObject<SITE>(GetPosition(sensor[i].Get(j)), data, j);
+      int data = (int) rd -> GetValue(MIN_VALUE, MAX_VALUE);
+      double radius = rd -> GetValue(0.0, CELL_RADIUS/2.0*std::sqrt(3));
+      double theta = rd -> GetValue(0.0, 2*PI);
+      double x = X[i] + radius*std::cos(theta);
+      double y = Y[i] + radius*std::sin(theta);
+      Vector pos = Vector(x, y, height);
+      SetPosition(sensor[i].Get(j), pos);
+      Ptr<SITE> s = CreateObject<SITE>(pos, data, j);
       cell_site_list[i].Add(s);
-      anim->UpdateNodeSize(sensor[i].Get(j)->GetId(), 100, 100);
-      anim->UpdateNodeColor(sensor[i].Get(j)->GetId(), 0, 255, 0);
+     // anim->UpdateNodeSize(sensor[i].Get(j)->GetId(), 100, 100);
+     // anim->UpdateNodeColor(sensor[i].Get(j)->GetId(), 0, 255, 0);
     }
+  }
+  for(int cellId = 0; cellId < NUM_CELL-1; cellId++)
+  {
+    int n = cell_site_list[cellId].GetSize();
+    if(n == 0)
+    {
+      continue ;
+    }
+    Vector pos[n];  
+    for (int i = 0; i < n; i ++)
+    {
+      pos[i] = cell_site_list[cellId].Get(i)->GetSitePosition();
+    }
+    double dist[numberOfSites[cellId]+1][numberOfSites[cellId]+1];
+    dist[0][0] = 0;
+    for(int k1 = 1; k1 <= n; k1++)
+    {
+      dist[0][k1] = dist[k1][0] = CalculateDistance(pos[k1-1], GetPosition(gw[cellId].Get(0)));
+      for(int k2 = 1; k2 <= n; k2++)
+      {
+        dist[k1][k2] = CalculateDistance(pos[k1-1], pos[k2-1]);
+      }
+    }
+  // write dist matrix and resource of sites 
+    std::string filename = "input_cvrp/dist_"+std::to_string(cellId)+"_"+std::to_string(TOTAL_SITE)+"_"+std::to_string((int)MAX_RESOURCE_PER_UAV)+"_"+std::to_string(numScenario)+".txt";
+    ofstream myfile;
+    myfile.open(filename, std::ios::out | std::ios::trunc);
+    for(int i = 0; i <= n; i++)
+    {
+      for(int j = 0; j <= n; j++)
+      {
+        int d = (int)dist[i][j];   
+        if(j == n)
+        {
+          myfile<<d<<"\n";
+        }
+        else
+        {
+          myfile<<d<<" ";
+        }
+      }
+    }
+    myfile.close();
+    filename = "input_cvrp/demand_"+std::to_string(cellId)+"_"+std::to_string(TOTAL_SITE)+"_"+std::to_string((int)MAX_RESOURCE_PER_UAV)+"_"+std::to_string(numScenario)+".txt";
+    myfile.open(filename, std::ios::out | std::ios::trunc);
+    myfile<<0<<" ";
+    for(int i = 0 ; i < n; i++)
+    {
+      double resource = cell_site_list[cellId].Get(i)->GetResource();
+      myfile<<(int)resource<<" ";
+    }
+    myfile.close();
+
+    // scenario to file
+    filename = "scenario/posX_"+std::to_string(cellId)+"_"+std::to_string(TOTAL_SITE)+"_"+std::to_string((int)MAX_RESOURCE_PER_UAV)+"_"+std::to_string(numScenario)+".txt";
+    myfile.open(filename, std::ios::out | std::ios::trunc);
+    for(int i = 0 ; i < n; i++)
+    {
+      double posX = cell_site_list[cellId].Get(i)->GetSitePosition().x;
+      myfile<<posX<<" ";
+    }
+    myfile.close();
+
+    filename = "scenario/posY_"+std::to_string(cellId)+"_"+std::to_string(TOTAL_SITE)+"_"+std::to_string((int)MAX_RESOURCE_PER_UAV)+"_"+std::to_string(numScenario)+".txt";
+    myfile.open(filename, std::ios::out | std::ios::trunc);
+    for(int i = 0 ; i < n; i++)
+    {
+      double posY = cell_site_list[cellId].Get(i)->GetSitePosition().y;
+      myfile<<posY<<" ";
+    }
+    myfile.close();
+
+    filename = "scenario/visitedtime_"+std::to_string(cellId)+"_"+std::to_string(TOTAL_SITE)+"_"+std::to_string((int)MAX_RESOURCE_PER_UAV)+"_"+std::to_string(numScenario)+".txt";
+    myfile.open(filename, std::ios::out | std::ios::trunc);
+    for(int i = 0 ; i < n; i++)
+    {
+      double time = cell_site_list[cellId].Get(i)->GetVisitedTime();
+      myfile<<time<<" ";
+    }
+    myfile.close();
+
+    filename = "scenario/resource_"+std::to_string(cellId)+"_"+std::to_string(TOTAL_SITE)+"_"+std::to_string((int)MAX_RESOURCE_PER_UAV)+"_"+std::to_string(numScenario)+".txt";
+    myfile.open(filename, std::ios::out | std::ios::trunc);
+    for(int i = 0 ; i < n; i++)
+    {
+      double resource = cell_site_list[cellId].Get(i)->GetResource();
+      myfile<<resource<<" ";
+    }
+    myfile.close();
+
+    filename = "scenario/utility_"+std::to_string(cellId)+"_"+std::to_string(TOTAL_SITE)+"_"+std::to_string((int)MAX_RESOURCE_PER_UAV)+"_"+std::to_string(numScenario)+".txt";
+    myfile.open(filename, std::ios::out | std::ios::trunc);
+    for(int i = 0 ; i < n; i++)
+    {
+      double utility = cell_site_list[cellId].Get(i)->GetUtility();
+      myfile<<utility<<" ";
+    }
+    myfile.close();
+
+    filename = "scenario/urgency_"+std::to_string(cellId)+"_"+std::to_string(TOTAL_SITE)+"_"+std::to_string((int)MAX_RESOURCE_PER_UAV)+"_"+std::to_string(numScenario)+".txt";
+    myfile.open(filename, std::ios::out | std::ios::trunc);
+    for(int i = 0 ; i < n; i++)
+    {
+      double urgency = cell_site_list[cellId].Get(i)->GetUrgency();
+      myfile<<urgency<<" ";
+    }
+    myfile.close();
+  }
+}
+void ReadScenario()
+{
+  for(int cellId = 0; cellId < NUM_CELL-1; cellId++)
+  {
+    std::vector<double> posX;
+    std::string filename = "scenario/posX_"+std::to_string(cellId)+"_"+std::to_string(TOTAL_SITE)+"_"+std::to_string((int)MAX_RESOURCE_PER_UAV)+"_"+std::to_string(numScenario)+".txt";
+    ReadData(filename, posX);
+
+    std::vector<double> posY;
+    filename = "scenario/posY_"+std::to_string(cellId)+"_"+std::to_string(TOTAL_SITE)+"_"+std::to_string((int)MAX_RESOURCE_PER_UAV)+"_"+std::to_string(numScenario)+".txt";
+    ReadData(filename, posY);
+
+    std::vector<double> visitedtime;
+    filename = "scenario/visitedtime_"+std::to_string(cellId)+"_"+std::to_string(TOTAL_SITE)+"_"+std::to_string((int)MAX_RESOURCE_PER_UAV)+"_"+std::to_string(numScenario)+".txt";
+    ReadData(filename, visitedtime);
+
+    std::vector<double> resource;
+    filename = "scenario/resource_"+std::to_string(cellId)+"_"+std::to_string(TOTAL_SITE)+"_"+std::to_string((int)MAX_RESOURCE_PER_UAV)+"_"+std::to_string(numScenario)+".txt";
+    ReadData(filename, resource);
+    
+    std::vector<double> utility;
+    filename = "scenario/utility_"+std::to_string(cellId)+"_"+std::to_string(TOTAL_SITE)+"_"+std::to_string((int)MAX_RESOURCE_PER_UAV)+"_"+std::to_string(numScenario)+".txt";
+    ReadData(filename, utility);
+
+    std::vector<double> urgency;
+    filename = "scenario/urgency_"+std::to_string(cellId)+"_"+std::to_string(TOTAL_SITE)+"_"+std::to_string((int)MAX_RESOURCE_PER_UAV)+"_"+std::to_string(numScenario)+".txt";
+    ReadData(filename, urgency);
+
+    
+    for(int i = 0; i < numberOfSites[cellId]; i++)
+    {
+      Vector pos = Vector(posX[i], posY[i], height);
+      SetPosition(sensor[cellId].Get(i), pos);
+      Ptr<SITE> s = CreateObject<SITE>(pos, visitedtime[i], (int)resource[i], utility[i], urgency[i], i);
+      cell_site_list[cellId].Add(s);
+     // anim->UpdateNodeSize(sensor[cellId].Get(i)->GetId(), 100, 100);
+     // anim->UpdateNodeColor(sensor[cellId].Get(i)->GetId(), 0, 255, 0);
+    }
+    posX.clear();
+    posY.clear();
+    visitedtime.clear();
+    resource.clear();
+    utility.clear();
+    urgency.clear();
+  }
+}
+void NewScenario()
+{
+  
+  Tbegin = GetNow();
+ // CreateSite();
+  ReadScenario();
+  for(int i = 0; i < NUM_CELL-1; i++)
+  {
+    GELSGA(i);
+    Execute(i);
   }
 }
 double CalculateCost(double distance)
@@ -364,7 +557,7 @@ double CalculateCost(double distance)
 std::vector<int> CreateChromosome(int cellId)
 {
   std::vector<int> v;
-  for(int i = 0; i < NUM_UAV-1; i++)
+  for(int i = 0; i < num_vehicles[cellId]-1; i++)
   {
     v.push_back(777);
   }
@@ -373,7 +566,7 @@ std::vector<int> CreateChromosome(int cellId)
     v.push_back(i);
   }
   std::vector<int> chro;
-  for(int i = 0; i < numberOfSites[cellId] + NUM_UAV-1; i++)
+  for(int i = 0; i < numberOfSites[cellId] + num_vehicles[cellId]-1; i++)
   {
     int size = v.size();
     if(size < 2)
@@ -426,7 +619,7 @@ void Update777Value()
 double CalculateFitness(std::vector<int> &chro, int cellId)
 {
   int id = 0;
-  int vl777[NUM_UAV-1];
+  int vl777[num_vehicles[cellId]-1];
   for(int i = 0; i < (int)chro.size(); i++)
   {
     if(chro[i] == 777)
@@ -436,18 +629,18 @@ double CalculateFitness(std::vector<int> &chro, int cellId)
     }
   }
   double fit = 0;
-  double load[NUM_UAV];
+  double load[num_vehicles[cellId]];
   int begin, end;
-  for(int i = 0; i < NUM_UAV; i++)
+  for(int i = 0; i < num_vehicles[cellId]; i++)
   {
     if(i == 0)
     {
       begin = 0;
       end = vl777[0] - 1;
     }
-    else if(i == NUM_UAV-1)
+    else if(i == num_vehicles[cellId]-1)
     {
-      begin = vl777[NUM_UAV-2] + 1;
+      begin = vl777[num_vehicles[cellId]-2] + 1;
       end = (int)chro.size() - 1;
     }
     else
@@ -473,7 +666,11 @@ double CalculateFitness(std::vector<int> &chro, int cellId)
       }
     }
     //std::cout<<"load "<<i<<" = "<<load[i]<<std::endl;
-    fit += (load[i] - MAX_RESOURCE_PER_UAV);    
+    double o = load[i] - MAX_RESOURCE_PER_UAV;
+    if(o > 0)
+    {
+      fit += 100*o;    
+    }
   }
   return fit;
 }
@@ -485,7 +682,7 @@ void CalculateFitness(int cellId)
     // find id of 777
     int start = 0;
     int num = 0;
-    while(num < NUM_UAV-1)
+    while(num < num_vehicles[cellId]-1)
     {
       for(int i = start; i < (int)chromosome[k].size(); i++)
       {
@@ -510,7 +707,7 @@ void CalculateFitness(int cellId)
   }
   CrossOver(cellId);
 }
-void CrossOverType1(int father, int mother)
+void CrossOverType1(int father, int mother, int cellId)
 {
  // std::cout<<"CrossOverType1"<<std::endl;
   int sequence = father;
@@ -529,9 +726,18 @@ void CrossOverType1(int father, int mother)
     {
       children.push_back(777);
       value777_children[id] = i;
-      if(id < NUM_UAV-2)
+      if(id < num_vehicles[cellId]-2)
       {
         id++;
+      }
+      if(chromosome[sequence][idx] == 777)
+      {
+        idx++;
+      }
+      else
+      {
+        children.push_back(chromosome[sequence][idx]);
+        idx++;
       }
     }
     else
@@ -540,8 +746,11 @@ void CrossOverType1(int father, int mother)
       {
         idx++;
       }
-      children.push_back(chromosome[sequence][idx]);
-      idx++;
+      else
+      {
+        children.push_back(chromosome[sequence][idx]);
+        idx++;
+      }
     }
   }
   // for(int i = 0; i < (int)children.size(); i++)
@@ -550,7 +759,7 @@ void CrossOverType1(int father, int mother)
   // }
   // std::cout<<std::endl;
 }
-void CrossOverType2(int father, int mother)
+void CrossOverType2(int father, int mother, int cellId)
 {
  // std::cout<<"CrossOverType2"<<std::endl;
   int size = (int)chromosome[father].size();
@@ -595,7 +804,7 @@ void CrossOverType2(int father, int mother)
               c++;
             }
           }
-          if(c < NUM_UAV-1)
+          if(c < num_vehicles[cellId]-1)
           {
 
           }
@@ -642,7 +851,7 @@ void CrossOverType2(int father, int mother)
   {
     if(v[i] == 777)
     {
-      if(count777 < NUM_UAV-1)
+      if(count777 < num_vehicles[cellId]-1)
       {
         count777++;
       }
@@ -719,7 +928,7 @@ void CrossOverType2(int father, int mother)
           {
             //if()
           }
-          if(c < NUM_UAV-1)
+          if(c < num_vehicles[cellId]-1)
           {
             break;
           }
@@ -805,11 +1014,11 @@ void CrossOver(int cellId)
   int ran = rand() % 10;
   if(ran % 2 == 0)
   {
-    CrossOverType1(idMin, second);
+    CrossOverType1(idMin, second, cellId);
   }
   else
   {
-    CrossOverType2(idMin, second);
+    CrossOverType2(idMin, second, cellId);
   }
   int id = 0;
     for(int i = 0; i < (int)children.size(); i++)
@@ -822,9 +1031,9 @@ void CrossOver(int cellId)
     }
   Mutation(cellId);
 }
-void MutationType1()
+void MutationType1(int cellId)
 {
- // std::cout<<"MutationType1"<<std::endl;
+  //std::cout<<"MutationType1"<<std::endl;
   while(1)
   {
     int id1 = rand() % (children.size());
@@ -855,10 +1064,10 @@ void MutationType1()
   // }
   // std::cout<<std::endl;
 }
-void MutationType2()
+void MutationType2(int cellId)
 {
- //std::cout<<"MutationType2"<<std::endl;
-  int id = rand() % NUM_UAV;
+// std::cout<<"MutationType2"<<std::endl;
+  int id = rand() % num_vehicles[cellId];
  // std::cout<<"id = "<<id<<std::endl;
   int begin, end;
   //std::cout<<"777 0 = "<<value777_children[0]<<std::endl;
@@ -867,9 +1076,9 @@ void MutationType2()
     begin = 0;
     end = value777_children[0] - 1;
   }
-  else if(id == NUM_UAV-1)
+  else if(id == num_vehicles[cellId]-1)
   {
-    begin = value777_children[NUM_UAV-2] + 1;
+    begin = value777_children[num_vehicles[cellId]-2] + 1;
     end = (int)children.size() - 1;
   }
   else
@@ -910,17 +1119,17 @@ void Mutation(int cellId)
   int ran = rand() % 10;
   if(ran % 2 == 0)
   {
-    MutationType1();
+    MutationType1(cellId);
   }
   else
   {
-    MutationType2();
+    MutationType2(cellId);
   }
   Terminate(cellId);
 }
 void Terminate(int cellId)
 {
- // std::cout<<"Terminate"<<std::endl;
+  std::cout<<"Terminate cell "<<cellId<<" iterator "<<numIterator<<std::endl;
   double childrenFitness = CalculateFitness(children, cellId);
  // std::cout<<"children fitness = "<<childrenFitness<<std::endl;
   int idMax = 0;
@@ -939,14 +1148,14 @@ void Terminate(int cellId)
     chromosome[idMax].clear();
     chromosome[idMax] = children;
     fitness[idMax] = childrenFitness;
-    for(int i = 0; i < NUM_UAV-1; i++)
+    for(int i = 0; i < num_vehicles[cellId]-1; i++)
     {
       value777[idMax][i] = value777_children[i];
     }
   }
   if(numIterator == NUM_ITERATOR-1)
   {
-    std::cout<<"Cell "<<cellId<<std::endl;
+   // std::cout<<"Cell "<<cellId<<std::endl;
     for(int i = 0; i < NUM_CHROMOSOME; i++)
     {
       fitness[i] = CalculateFitness(chromosome[i], cellId);
@@ -961,48 +1170,19 @@ void Terminate(int cellId)
         idMin = i;
       }
     }
-    std::cout<<"idmin = "<<idMin<<" fitness = "<<fitness[idMin]<<std::endl;
+  //  std::cout<<"idmin = "<<idMin<<" fitness = "<<fitness[idMin]<<std::endl;
+    gelsga_out[cellId].clear();
     gelsga_out[cellId] = chromosome[idMin];
-    std::cout<<"output: ";
-    double length = 0;
-    for(int i = 0; i < (int)gelsga_out[cellId].size(); i++)
-    {
-      int id = gelsga_out[cellId][i];
-      std::cout<<id<<" ";
-    }
+    // std::cout<<"output: ";
+    // for(int i = 0; i < (int)gelsga_out[cellId].size(); i++)
+    // {
+    //   int id = gelsga_out[cellId][i];
+    //   std::cout<<id<<" ";
+    // }
     std::cout<<std::endl;
     path[cellId].clear();
     path[cellId] = gelsga_out[cellId];
-    int count = NUM_UAV-1;
-    while(count > 0)
-    {
-      for(int i = 0; i < (int)path[cellId].size(); i++)
-      {
-        if(path[cellId][i] == 777)
-        {
-          path[cellId].erase(path[cellId].begin()+i);
-          count--;
-          break;
-        }
-      }
-    }
-    std::cout<<"path: ";
-    for(int i = 0; i < (int)path[cellId].size(); i++)
-    {
-      std::cout<<path[cellId][i]<<" ";
-    }
-    std::cout<<std::endl;
-    for(int i = 0; i < (int)path[cellId].size()-1; i++)
-    {
-      int id1 = path[cellId][i];
-      Ptr<SITE> s1 = cell_site_list[cellId].Get(id1);
-      int id2 = path[cellId][i+1];
-      Ptr<SITE> s2 = cell_site_list[cellId].Get(id2);
-      length += CalculateDistance(s1->GetSitePosition(), s2->GetSitePosition());
-    }
-    length += CalculateDistance(Vector(X[cellId], Y[cellId],0), cell_site_list[cellId].Get(path[cellId][0])->GetSitePosition());
-    length += CalculateDistance(Vector(X[cellId], Y[cellId],0), cell_site_list[cellId].Get(path[cellId][(int)path[cellId].size()-1])->GetSitePosition());
-    std::cout<<"length = "<<length<<std::endl;
+    
     return;
   }
   else
@@ -1169,20 +1349,20 @@ void GELS(int cellId)
 }
 void GELSGA(int cellId)
 {
-  std::cout<<"GELSGA cell "<<cellId<<" num site = "<<numberOfSites[cellId]<<std::endl;
+ // std::cout<<"GELSGA cell "<<cellId<<" num site = "<<numberOfSites[cellId]<<std::endl;
   numIterator = 0;
   gelsga_out[cellId].clear();
   CreatePopulation(cellId);
 }
 void Execute(int cellId)
 { 
-  std::cout<<"execute cell "<<cellId<<std::endl;
+  //std::cout<<"execute cell "<<cellId<<std::endl;
   numSite[cellId] = 0;
   DivideSitesIntoSegment(cellId);
   for(int i = 0; i < NUM_UAV; i++)
   {
-    anim->UpdateNodeSize(uav[cellId].Get(i)->GetId(), 200, 200);
-    anim->UpdateNodeColor(uav[cellId].Get(i)->GetId(), 0, 0, 255);
+   // anim->UpdateNodeSize(uav[cellId].Get(i)->GetId(), 200, 200);
+   // anim->UpdateNodeColor(uav[cellId].Get(i)->GetId(), 0, 0, 255);
     uavState[cellId][i] = 0;
     FindSegment(cellId, i); 
   }
@@ -1238,15 +1418,17 @@ void PrintSegmentInformation(int cellId)
   double d = 0;
   for(int i = 0; i < numSegment[cellId]; i++)
   {
+    
     std::cout<<"segment "<<i<<": ";
     for(int j = 0; j < (int)segment[cellId][i].GetSize(); j++)
     {
       Ptr<SITE> s = segment[cellId][i].Get(j);
+      
       int id = s->GetId();
       std::cout<<id<<" ";
     }
     d += segmentDistance[cellId][i];
-    std::cout<<"\t flightTime: "<<segmentFlightTime[cellId][i]<<" distance: \t"<<segmentDistance[cellId][i]<<std::endl;
+    std::cout<<"\t flightTime: "<<segmentFlightTime[cellId][i]<<" distance: "<<segmentDistance[cellId][i]<<", res = "<<resourceOfSegment[cellId][i]<<std::endl;
   }
   std::cout<<"total distance: "<<d<<std::endl;
 }
@@ -1298,127 +1480,120 @@ void AllocateSegment(int cellId)
     time[idmin] += segmentFlightTime[cellId][idSegment];
     n--;
   }
-  for(int i = 0; i < NUM_UAV; i++)
+  // for(int i = 0; i < NUM_UAV; i++)
+  // {
+  //   std::cout<<"segments of uav "<<i<<": ";
+  //   for(int j = 0; j < (int)segmentsOfUav[cellId][i].size(); j++)
+  //   {
+  //     std::cout<<segmentsOfUav[cellId][i][j]<<" ";
+  //   }
+  //   std::cout<<std::endl;
+  // }
+}
+void CheckSegmentResource(int cellId)
+{
+  std::vector<int> v;
+  for(int i = 0; i < numSegment[cellId]; i++)
   {
-    std::cout<<"segments of uav "<<i<<": ";
-    for(int j = 0; j < (int)segmentsOfUav[cellId][i].size(); j++)
+    resourceOfSegment[cellId][i] = segment[cellId][i].GetResource();
+
+    if(resourceOfSegment[cellId][i] > MAX_RESOURCE_PER_UAV)
     {
-      std::cout<<segmentsOfUav[cellId][i][j]<<" ";
+      v.push_back(i);
     }
-    std::cout<<std::endl;
+  }
+  int size = v.size();
+  for(int i = 0; i < size; i++)
+  {
+    int id = v[0];
+   // std::cout<<"res "<<cellId<<" "<<id<<std::endl;
+    while(resourceOfSegment[cellId][id] > MAX_RESOURCE_PER_UAV)
+    {
+      int n = segment[cellId][id].GetSize();
+      int idmin = 0;
+      Ptr<SITE> s = segment[cellId][id].Get(0);
+      int res = s -> GetResource();
+      int minres = res;
+      for(int k = 1; k < n; k++)
+      {
+        Ptr<SITE> s1 = segment[cellId][id].Get(k);
+        int re = s1 -> GetResource();
+        if(re < minres)
+        {
+          minres = re;
+          idmin = k;
+        }
+      }
+      Ptr<SITE> sm = segment[cellId][id].Get(idmin);
+      int im = IdMin<int>(resourceOfSegment[cellId], numSegment[cellId]);
+      if(resourceOfSegment[cellId][im] + minres > MAX_RESOURCE_PER_UAV)
+      {
+       // std::cout<<"greater than max cell "<<cellId<<" segment "<<id<<std::endl;
+        int t = numSegment[cellId];
+        numSegment[cellId]++;
+        segment[cellId][t].Add(sm);
+        segment[cellId][id].Remove(sm);
+        resourceOfSegment[cellId][t] = segment[cellId][t].GetResource();
+        resourceOfSegment[cellId][id] -= minres;
+        break;
+      }
+      else
+      {
+
+        segment[cellId][im].Add(sm);
+        segment[cellId][id].Remove(sm);
+        resourceOfSegment[cellId][im] += minres;
+        resourceOfSegment[cellId][id] -= minres;
+      }
+      
+    }
+    v.erase(v.begin());
   }
 }
 void DivideSitesIntoSegment(int cellId)
 {
-  std::cout<<"divide site into segment cell "<<cellId<<std::endl;
-  
+//  std::cout<<"divide site into segment cell "<<cellId<<std::endl;
   int totalSite = cell_site_list[cellId].GetSize();
+
   if(totalSite == 0)
   {
     std::cout<<"cell "<<cellId<<" has 0 segment"<<std::endl;
     numSegment[cellId] = 0;
     return;
   }
-    std::list<int> list;
-    int step;
-    int remainder;
-    SiteList sl[totalSite];
-    for(int i = 0; i < totalSite; i++)
+  SiteList sl[totalSite];
+  int idSegment = 0;
+  int size = (int)path[cellId].size();
+  for(int i = 0; i < size; i++)
+  {
+    if(path[cellId][i] == 777)
     {
-      list.push_back(path[cellId][i]);
+      idSegment++;
     }
-    //////////////////
-    int idSegment = 0;
-    while(list.size() > 0)
+    else
     {
-      int n = (int)list.size();
-      step = n/NUM_UAV;
-      remainder = n - step*NUM_UAV;
-      if(step > 0)
-      {
-        //std::cout<<"first"<<std::endl;
-        for(int i = 0; i < NUM_UAV; i++)
-        {
-          
-          for(int j = 0; j < step; j++)
-          {
-            if(list.size() == 0)
-            {
-              break;
-            }
-            int siteId = GetValue<int>(list, 0);
-            Ptr<SITE> s = cell_site_list[cellId].Get(siteId);
-            if(sl[idSegment].GetResource() + s->GetResource() < MAX_RESOURCE_PER_UAV)
-            {
-              sl[idSegment].Add(s);
-              list.pop_front();
-              if(j == step - 1)
-              {
-                if(remainder > 0)
-                {
-                  if(list.size() == 0)
-                  {
-                    break;
-                  }
-                  int siteId1 = GetValue<int>(list, 0);
-                  Ptr<SITE> s1 = cell_site_list[cellId].Get(siteId1);
-                  if(sl[idSegment].GetResource() + s1->GetResource() < MAX_RESOURCE_PER_UAV)
-                  {
-                    sl[idSegment].Add(s1);
-                    list.pop_front();
-                    remainder--;
-                  }
-                }
-              }
-            }
-          }
-          idSegment++;
-        }
-      }
-      else
-      {
-       // std::cout<<"second"<<std::endl;
-        for(int i = 0; i < remainder; i++)
-        {
-          if(list.size() == 0)
-          {
-            break;
-          }
-          for(int j = 0; j < remainder; j++)
-          {
-            if(list.size() == 0)
-            {
-              break;
-            }
-            int siteId = GetValue<int>(list, 0);
-            Ptr<SITE> s = cell_site_list[cellId].Get(siteId);
-            double r1 = sl[idSegment].GetResource();
-            double r2 = s->GetResource();
-            if(r1 + r2 < MAX_RESOURCE_PER_UAV)
-            {
-              sl[idSegment].Add(s);
-              list.pop_front();
-            }
-          }
-          idSegment++;
-        }
-      }
-      
+      int id = path[cellId][i];
+      Ptr<SITE> s = cell_site_list[cellId].Get(id);
+      sl[idSegment].Add(s);
     }
+  }
+    
+   
     //////////////////////
-
+    int segmentId = -1;
     numSegment[cellId] = 0;
-    for(int i = 0; i < totalSite; i++)
+    for(int i = 0; i < idSegment+1; i++)
     {
       if(sl[i].GetSize() == 0)
       {
-        break;
+        continue;
       }
       numSegment[cellId]++;
+      segmentId++;
       for(int j = 0; j < (int)sl[i].GetSize(); j++)
       {
         Ptr<SITE> s = sl[i].Get(j);
-        segment[cellId][i].Add(s);
+        segment[cellId][segmentId].Add(s);
       }
       sl[i].Clear();
     }
@@ -1427,16 +1602,19 @@ void DivideSitesIntoSegment(int cellId)
   {
     mark[cellId][i] = 0;
   }
-  std::cout<<"cell "<<cellId<<" has "<<numSegment[cellId]<<" segment"<<std::endl;
+  
+  CheckSegmentResource(cellId);
+  //std::cout<<"cell "<<cellId<<" has "<<numSegment[cellId]<<" segment"<<std::endl;
   CalculateSegmentFlightTime(cellId);
-  PrintSegmentInformation(cellId);
+  //PrintSegmentInformation(cellId);
   AllocateSegment(cellId);
 }
 void FindSegment(int cellId, int uavId)
 {
- // std::cout<<"find segment cell "<<cellId<<" uav "<<uavId<<std::endl;
+  //std::cout<<"find segment cell "<<cellId<<" uav "<<uavId<<std::endl;
   if(segmentsOfUav[cellId][uavId].size() == 0)
   {
+   // std::cout<<"size uav "<<uavId<<" = 0"<<std::endl;
     return;
   }
   else
@@ -1452,9 +1630,10 @@ void FindSegment(int cellId, int uavId)
 
 void AllocateSegment(Ptr<UAV> u, int id)
 {
- // int uavId = u -> GetUavId();
   int cellId = u -> GetCellId();
-  //std::cout<<"cell "<<cellId<<": allocate segment "<<id<<" for uav "<<uavId<<std::endl;
+ // int uavId = u -> GetUavId();
+  
+ // std::cout<<"cell "<<cellId<<": allocate segment "<<id<<" for uav "<<uavId<<std::endl;
   int size = (int)segment[cellId][id].GetSize();
   for(int i = 0; i < size; i++)
   {
@@ -1463,7 +1642,7 @@ void AllocateSegment(Ptr<UAV> u, int id)
 }
 void ChangeColor(int cellId, int sensorId)
 {
-  anim->UpdateNodeColor(sensor[cellId].Get(sensorId)->GetId(), 255, 0, 0);
+  //anim->UpdateNodeColor(sensor[cellId].Get(sensorId)->GetId(), 255, 0, 0);
 }
 void DoTask(Ptr<UAV> u)
 {
@@ -1492,7 +1671,7 @@ void DoTask(Ptr<UAV> u)
   numSite[cellId]++;
   Ptr<SITE> s = u->GetSite();
   completedSites[cellId].push_back(s->GetId());
- // std::cout<<GetNow()<<": cell "<<cellId<<", uav "<<uavId<<" go to site "<<s->GetId()<<std::endl;  
+  //std::cout<<GetNow()<<": cell "<<cellId<<", uav "<<uavId<<" go to site "<<s->GetId()<<std::endl;  
   double flightTime = Goto(u, s -> GetSitePosition());
   u -> UpdateEnergy(FLYING);
   u -> UpdateFliedDistance(VUAV*flightTime);
@@ -1524,13 +1703,16 @@ void NextRound(Ptr<UAV> u)
     finish[cellId] = 1;
     if(IsFinish())
     {
-      StopSimulation();
+      EndScenario();
     }
   }
   else
   {
    // std::cout<<GetNow()<<": next round cell "<<cellId<<", uav "<<uavId<<std::endl;
-    Simulator::Schedule(Seconds(60*INTERVAL_BETWEEN_TWO_ROUNDS), &FindSegment, cellId, uavId);
+    if(segmentsOfUav[cellId][uavId].size() > 0)
+    {
+      Simulator::Schedule(Seconds(60*INTERVAL_BETWEEN_TWO_ROUNDS), &FindSegment, cellId, uavId);
+    }
   }
 }
 int IsFinish()
@@ -1573,33 +1755,58 @@ int IsFinish(int cellId)
   }
   return 1;
 }
-void StopSimulation()
+void Reset()
 {
- // std::cout<<GetNow()<<": stop sim"<<std::endl;
+  for(int i = 0; i < NUM_CELL; i++)
+  {
+    if(i == NUM_CELL-1)
+    {
+      finish[i] = 1;
+    }
+    else
+    {
+      finish[i] = 0;
+    }
+    numSite[i] = 0;
+    workInfor[i].clear();
+    completedSites[i].clear();
+    cell_site_list[i].Clear();
+    dataLoad = 0;
+    for(int j = 0; j < NUM_UAV; j++)
+    {
+      Ptr<UAV> u = uav[i].GetUav(j);
+      double energy = u -> GetConsumedEnergy();
+      u -> IncreaseEnergy(-energy);
+      double flightTime = u -> GetFlightTime();
+      u -> UpdateFlightTime(-flightTime);
+      double distance = u -> GetFliedDistance();
+      u -> UpdateFliedDistance (-distance);
+    }
+    for(int j = 0; j < numSegment[i]; j++)
+    {
+      segment[i][j].Clear();
+    }
+  }
+}
+void EndScenario()
+{
+  std::cout<<"end scenario "<<numScenario<<std::endl;
+  double Tend = GetNow();
   double energy = 0;
   double fliedDistance = 0;
   double utility = 0;
-  double time = 0;
+  double flightTime = 0;
   for(int i = 0; i < NUM_CELL; i++)
   {
-    std::cout<<i<<": "<<numSite[i]<<std::endl;
-   // std::cout<<"cell "<<i<<std::endl;
-    double eng = uav[i].CalculateEnergyConsumption();
-    energy += eng;
-   // std::cout<<"energy: "<<eng<<std::endl;
-    double dist = uav[i].CalculateFliedDistance();
-    fliedDistance += dist;
-    //std::cout<<"distance: "<<dist<<std::endl;
-    double uti = cell_site_list[i].GetUtility();
-    utility += uti;
-   // std::cout<<"utility: "<<uti<<std::endl;
-    double t = uav[i].CalculateFlightTime();
-    time += t;
-   // std::cout<<"time: "<<t<<std::endl;
+    //std::cout<<i<<": "<<numSite[i]<<std::endl;
+    energy += uav[i].CalculateEnergyConsumption()/1000000.0;
+    fliedDistance += uav[i].CalculateFliedDistance()/1000.0;
+    utility += cell_site_list[i].GetUtility();
+    flightTime += uav[i].CalculateFlightTime()/3600.0;
   }
   // for(int i = 0; i < NUM_CELL; i++)
   // {
-  //   std::cout<<"cell "<<i<<": ";
+  //   std::cout<<"cell "<<i<<" has "<<(int)completedSites[i].size()<<" sites: ";
   //   for(int j = 0; j < (int)completedSites[i].size(); j++)
   //   {
   //     std::cout<<completedSites[i][j]<<" ";
@@ -1617,15 +1824,41 @@ void StopSimulation()
   //     std::cout<<"site "<<id.first<<", by "<<id.second<<", start = "<<time.first<<", stop = "<<time.second<<", pos "<<cell_site_list[i].Get(id.first)->GetSitePosition()<<std::endl;
   //   }
   // }
-  std::cout<<"length0 = "<<length0<<std::endl;
   double cost = CalculateCost(fliedDistance);
+  cumulativeSpanningTime += (Tend - Tbegin)/60.0;
+ // std::cout<<"spanning time = "<<
+  cumulativeFlightTime += flightTime;
+  cumulativeEnergy += energy;
+  cumulativeFlightDistance += fliedDistance;
+  cumulativeBenefit += utility - cost;
+  cumulativeData += dataLoad/1024.0/1024.0;
+  std::cout<<"spanning time = "<<(Tend - Tbegin)/60.0<<std::endl;
+  std::cout<<"flightTime = "<<flightTime<<std::endl;
+  std::cout<<"energy = "<<energy<<std::endl;
+  std::cout<<"fliedDistance = "<<fliedDistance<<std::endl;
+  std::cout<<"benefit = "<<utility - cost<<std::endl;
+  std::cout<<"data = "<<dataLoad/1024.0/1024.0<<std::endl;
+  Reset();
+  numScenario++;
+  if(numScenario == NUM_SCENARIO)
+  {
+    StopSimulation();
+    return;
+  }
+  else
+  {
+    NewScenario();
+  }
+}
+void StopSimulation()
+{
   std::cout<<"GELSGA R0 = "<<MAX_RESOURCE_PER_UAV<<", total site = "<<TOTAL_SITE<<std::endl;
-  std::cout<<"Spanning time: "<<GetNow()/60.0<<" m"<<std::endl;
-  std::cout<<"Flight time: "<<time/3600.0<<" h"<<std::endl;
-  std::cout<<"Energy: "<<energy/1000000.0<<" MJ"<<std::endl;
-  std::cout<<"Flied distance: "<<fliedDistance/1000.0<<" km"<<std::endl;
-  std::cout<<"Benefit: "<<utility - cost<<std::endl;
-  std::cout<<"Data: "<<dataLoad/1024.0/1024.0<<" MB"<<std::endl;
+  std::cout<<"Spanning time: "<<cumulativeSpanningTime/NUM_SCENARIO<<" m"<<std::endl;
+  std::cout<<"Flight time: "<<cumulativeFlightTime/NUM_SCENARIO<<" h"<<std::endl;
+  std::cout<<"Energy: "<<cumulativeEnergy/NUM_SCENARIO<<" MJ"<<std::endl;
+  std::cout<<"Flied distance: "<<cumulativeFlightDistance/NUM_SCENARIO<<" km"<<std::endl;
+  std::cout<<"Benefit: "<<cumulativeBenefit/NUM_SCENARIO<<std::endl;
+  std::cout<<"Data: "<<cumulativeData/NUM_SCENARIO<<" MB"<<std::endl;
   CreatePathPlot();
   Simulator::Stop();
 }

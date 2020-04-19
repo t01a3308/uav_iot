@@ -76,15 +76,11 @@ int main()
     SetupCommunication(i);
     SetupApplication(i);
     UavSend(i);
-    SensorSend(i);    
   }
-  anim = new AnimationInterface("gelsga.xml");
-  CreateSite();
-  for(int i = 0; i < NUM_CELL-1; i++)
-  {
-    GELSGA(i);
-    Execute(i);
-  }
+  anim = new AnimationInterface("animation/gelsga.xml");
+  CalculateNumberOfSites();
+  NewScenario();
+  
   Simulator::Run();
   Simulator::Destroy();
   

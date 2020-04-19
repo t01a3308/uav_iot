@@ -45,27 +45,36 @@ private:
 	
 	Vector position;
     double visited_time; //second	
-	double resource;
+	int resource;
 	double urgency;
 	double w;
 	double utility;
 	int id;
+	int status = 0;
+	vector < pair<Ptr<UAV>, double > > bidder;
 public:
-	SITE(Vector p, double data_value, int idx);
+	static int cnt;
+	SITE(Vector p, int data_value, int idx);
+	SITE(Vector p, double visitedtime, int res, double uti, double urg, int idx);
 	~SITE()
 	{
 
 	};
 	Vector GetSitePosition();
 	double GetVisitedTime();
-	double GetResource();
+	int GetResource();
 	double GetUrgency();
 	double GetUtility();
 	int GetId();
-	//double sprayVol(double c_h, double c_l);
-	//double dustVol(void);
+	void AddBidder(Ptr<UAV> u, double distance);
+	Ptr<UAV> GetBidder();
+	void RemoveBidder();
+	int CheckPrice(Ptr<UAV> u, double distance);
+	int GetStatus();
+	void SetStatus(int sta);
 };
-SITE::SITE(Vector p, double data_value, int idx)
+int SITE::cnt = 0;
+SITE::SITE(Vector p, int data_value, int idx)
 {
 	Ptr<UniformRandomVariable> rd = CreateObject<UniformRandomVariable>();
 	position = Vector(p.x, p.y, height);
@@ -73,8 +82,18 @@ SITE::SITE(Vector p, double data_value, int idx)
 	resource = RESOURCE_FACTOR * data_value;
 	urgency = rd -> GetValue(MIN_URGENCY, MAX_URGENCY);
 	w = rd -> GetValue(1.0, 2.0);
-	utility = K_FACTOR * w * resource * urgency;
+	utility = K_FACTOR * w * resource * urgency - VISITED_TIME_UTILITY_FACTOR*visited_time;
 	id = idx;
+}
+SITE::SITE(Vector p, double visitedtime, int res, double uti, double urg, int idx)
+{
+	position = Vector(p.x, p.y, height);
+	visited_time = visitedtime;
+	resource = res;
+	utility = uti;
+	urgency = urg;
+	id = idx;
+	//std::cout<<"site "<<idx<<", pos: "<<position<<", visitedtime = "<<visited_time<<", res = "<<resource<<", utility = "<<utility<<", urg = "<<urgency<<std::endl;
 }
 Vector SITE::GetSitePosition()
 {
@@ -84,7 +103,7 @@ double SITE::GetVisitedTime()
 {
 	return visited_time;
 }
-double SITE::GetResource()
+int SITE::GetResource()
 {
 	return resource;
 }
@@ -100,6 +119,35 @@ int SITE::GetId()
 {
 	return id;
 }
+void SITE::AddBidder(Ptr<UAV> u, double distance)
+{
+	bidder.push_back(make_pair(u, distance));
+}
+Ptr<UAV> SITE::GetBidder()
+{
+	return bidder[0].first;
+}
+void SITE::RemoveBidder()
+{	
+	bidder.pop_back();
+}
+int SITE::CheckPrice(Ptr<UAV> newBidder, double distance)
+{
+	if(distance < bidder[0].second)
+	{
+		return 1;
+	}
+	return 0;
+	
+}
+int SITE::GetStatus()
+{
+	return status;
+}
+void SITE::SetStatus(int sta)
+{
+	status = sta;
+}
 //
 class SiteList
 {
@@ -112,13 +160,17 @@ public:
 	};
 	~SiteList()
 	{
-
+		m_list.clear();
 	};
 	void Add(Ptr<SITE> site);
 	Ptr<SITE> Get(uint32_t i);
 	uint32_t GetSize();
 	double GetUtility();
-	double GetResource();
+	double GetLength(Vector pos);
+	int GetResource();
+	void Remove(Ptr<SITE> site);
+	void Pop();
+	void Print();
 	void Clear();
 };
 void SiteList::Add(Ptr<SITE> site)
@@ -142,14 +194,52 @@ double SiteList::GetUtility()
 	}
 	return u;
 }
-double SiteList::GetResource()
+double SiteList::GetLength(Vector pos)
 {
-	double rs = 0;
+	int n = m_list.size();
+	double distance = 0;
+	distance += CalculateDistance(pos, m_list[0]->GetSitePosition());
+	distance += CalculateDistance(pos, m_list[n-1]->GetSitePosition());
+	for(int i = 0; i < n - 1; i++)
+	{
+		distance += CalculateDistance(m_list[i]->GetSitePosition(), m_list[i+1]->GetSitePosition());
+	}
+	return distance;
+}
+int SiteList::GetResource()
+{
+	int rs = 0;
 	for(int i = 0; i < (int)m_list.size(); i++)
 	{
 		rs += m_list[i]->GetResource();
 	}
 	return rs;
+}
+void SiteList::Remove(Ptr<SITE> site)
+{
+	vector < Ptr<SITE> >:: iterator it = m_list.begin();
+	while(it != m_list.end())
+	{
+		if(*it == site)
+		{
+			m_list.erase(it);
+			break;
+		}
+		it++;
+	}
+}
+void SiteList::Pop()
+{
+	m_list.erase(m_list.begin());
+}
+void SiteList::Print()
+{
+	int n = (int)m_list.size();
+	for(int i = 0; i < n; i++)
+	{
+		std::cout<<m_list[i]->GetId()<<" ";
+	}
+	std::cout<<std::endl;
 }
 void SiteList::Clear()
 {
@@ -160,9 +250,12 @@ class UAV: public Node
 private:
 	int cell_id;
 	int uav_id;
+	double current_resource = MAX_RESOURCE_PER_UAV;
 	double flight_time = 0;
 	double consumed_energy = 0;
 	double flied_distance = 0;
+	double data_load = 0;
+	double sensed_stat = 0;
 	double power = 0; //
 	double t_old = 0; //power and t_old are used to calculate energy
 	queue < Ptr<SITE> > q;
@@ -184,6 +277,8 @@ public:
 	void UpdateFlightTime(double t);
 	double GetFlightTime();
 	uint32_t GetSiteSize();
+	double GetResource();
+	void SetResource(double newResource);
 	void AddSite(Ptr<SITE> s);
 	Ptr<SITE> GetSite();
 	void RemoveSite();
@@ -235,6 +330,14 @@ double UAV::GetFlightTime()
 uint32_t UAV::GetSiteSize()
 {
 	return q.size();
+}
+double UAV::GetResource()
+{
+	return current_resource;
+}
+void UAV::SetResource(double newResource)
+{
+	current_resource = newResource;
 }
 void UAV::AddSite(Ptr<SITE> s)
 {
