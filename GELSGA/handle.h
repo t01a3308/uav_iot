@@ -36,6 +36,7 @@
 #include "misc.h"
 using namespace ns3;
 using namespace std;
+extern double X[MAX_NUM_CELL], Y[MAX_NUM_CELL];
 class SITE: public Object 
 {
 	/*This class defines positions that measurements are available 
@@ -50,6 +51,9 @@ private:
 	double w;
 	double utility;
 	int id;
+	double appear_time;
+	double begin_time = -1;
+	double end_time = -1;;
 	int status = 0;
 	vector < pair<Ptr<UAV>, double > > bidder;
 public:
@@ -62,9 +66,16 @@ public:
 	};
 	Vector GetSitePosition();
 	double GetVisitedTime();
+	void SetBeginTime(double t);
+	void SetEndTime (double t);
+	double GetBeginTime();
+	double GetEndTime();
+	double GetTime();
 	int GetResource();
 	double GetUrgency();
 	double GetUtility();
+	double GetRealUtility();
+	double GetExpectedUtility(double t);
 	int GetId();
 	void AddBidder(Ptr<UAV> u, double distance);
 	Ptr<UAV> GetBidder();
@@ -82,8 +93,9 @@ SITE::SITE(Vector p, int data_value, int idx)
 	resource = RESOURCE_FACTOR * data_value;
 	urgency = rd -> GetValue(MIN_URGENCY, MAX_URGENCY);
 	w = rd -> GetValue(1.0, 2.0);
-	utility = K_FACTOR * w * resource * urgency - VISITED_TIME_UTILITY_FACTOR*visited_time;
+	utility = K_FACTOR * w * resource * urgency;
 	id = idx;
+	appear_time = GetNow();
 }
 SITE::SITE(Vector p, double visitedtime, int res, double uti, double urg, int idx)
 {
@@ -93,6 +105,7 @@ SITE::SITE(Vector p, double visitedtime, int res, double uti, double urg, int id
 	utility = uti;
 	urgency = urg;
 	id = idx;
+	appear_time = GetNow();
 	//std::cout<<"site "<<idx<<", pos: "<<position<<", visitedtime = "<<visited_time<<", res = "<<resource<<", utility = "<<utility<<", urg = "<<urgency<<std::endl;
 }
 Vector SITE::GetSitePosition()
@@ -102,6 +115,26 @@ Vector SITE::GetSitePosition()
 double SITE::GetVisitedTime()
 {
 	return visited_time;
+}
+double SITE::GetBeginTime()
+{
+	return begin_time;
+}
+double SITE::GetEndTime()
+{
+	return end_time;
+}
+double SITE::GetTime()
+{
+	return end_time - appear_time;
+}
+void SITE::SetBeginTime(double t)
+{
+	begin_time = t;
+}
+void SITE::SetEndTime(double t)
+{
+	end_time = t;
 }
 int SITE::GetResource()
 {
@@ -114,6 +147,19 @@ double SITE::GetUrgency()
 double SITE::GetUtility()
 {
 	return utility;
+}
+double SITE::GetRealUtility()
+{
+	if(begin_time == -1)
+	{
+		std::cout<<"begin_time = -1"<<std::endl;
+	}
+	return utility*(1 - UTILITY_FACTOR*(end_time - appear_time)/60.0/100);
+}
+double SITE::GetExpectedUtility(double t)
+{
+
+	return utility*(1 - UTILITY_FACTOR*(t - appear_time)/60.0/100);
 }
 int SITE::GetId()
 {
@@ -166,6 +212,9 @@ public:
 	Ptr<SITE> Get(uint32_t i);
 	uint32_t GetSize();
 	double GetUtility();
+	double GetRealUtility();
+	double GetExpectedUtility(int cellId);
+	double GetReverseUtility(int cellId);
 	double GetLength(Vector pos);
 	int GetResource();
 	void Remove(Ptr<SITE> site);
@@ -191,6 +240,57 @@ double SiteList::GetUtility()
 	for(uint32_t i = 0; i < this->GetSize(); i++)
 	{
 		u += m_list[i]->GetUtility();
+	}
+	return u;
+}
+double SiteList::GetExpectedUtility(int cellId)
+{
+	double currentTime = GetNow();
+	Vector currentPos = Vector(X[cellId], Y[cellId], height);
+	double utility = 0;
+	int size = m_list.size();
+	for(int i = 0; i < size; i++)
+	{
+		Ptr<SITE> s = m_list[i];
+		Vector nextPos = s -> GetSitePosition();
+		double distance = CalculateDistance(currentPos, nextPos);
+		double time = distance/VUAV;
+		double visitedtime = s -> GetVisitedTime();
+		double endtime = time + visitedtime + currentTime;
+		double uti = s -> GetExpectedUtility(endtime);
+		utility += uti;
+		currentTime = endtime;
+		currentPos = nextPos;
+	}
+	return utility;
+}
+double SiteList::GetReverseUtility(int cellId)
+{
+	double currentTime = GetNow();
+	Vector currentPos = Vector(X[cellId], Y[cellId], height);
+	double utility = 0;
+	int size = m_list.size();
+	for(int i = size-1; i >= 0; i--)
+	{
+		Ptr<SITE> s = m_list[i];
+		Vector nextPos = s -> GetSitePosition();
+		double distance = CalculateDistance(currentPos, nextPos);
+		double time = distance/VUAV;
+		double visitedtime = s -> GetVisitedTime();
+		double endtime = time + visitedtime + currentTime;
+		double uti = s -> GetExpectedUtility(endtime);
+		utility += uti;
+		currentTime = endtime;
+		currentPos = nextPos;
+	}
+	return utility;
+}
+double SiteList::GetRealUtility()
+{
+	double u = 0;
+	for(uint32_t i = 0; i < this->GetSize(); i++)
+	{
+		u += m_list[i]->GetRealUtility();
 	}
 	return u;
 }

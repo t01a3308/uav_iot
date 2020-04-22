@@ -64,7 +64,7 @@ std::vector<int> completedSites[NUM_CELL];
 typedef std::pair<double, double> myPair;
 typedef std::pair<int, std::string> myPair1;
 typedef std::pair<myPair1, myPair> mp;
-std::vector<mp> workInfor[NUM_CELL];
+//std::vector<mp> workInfor[NUM_CELL];
 double length0 = 0;
 //
 //
@@ -75,10 +75,13 @@ double cumulativeSpanningTime = 0;
 double cumulativeFlightTime = 0;
 double cumulativeFlightDistance = 0;
 double cumulativeEnergy = 0;
+double cumulativeUtility = 0;
 double cumulativeBenefit = 0;
 double cumulativeData = 0;
+double uti = 0;
 //
-Gnuplot2dDataset p[NUM_UAV];
+Gnuplot2dDataset p[NUM_UAV], p1[NUM_UAV];
+Gnuplot2dDataset utidts, uavdts;
 //
 Vector GetPosition(Ptr<Node> node);
 void SetPosition(Ptr<Node> node, Vector pos);
@@ -132,12 +135,165 @@ void SetVelocity(Ptr<Node> node, Vector v)
 void AddPath(int uavId, int cellId)
 {
   Vector pos = GetPosition(uav[cellId].Get(uavId));
-  p[uavId].Add(pos.x, pos.y);
+  if(cellId == 0)
+  {
+    p[uavId].Add(pos.x, pos.y);
+  }
+  else if(cellId == 6)
+  {
+    p1[uavId].Add(pos.x, pos.y);
+  }
+
+}
+void UpdateUtility(double begintime, double endtime, double delta)
+{
+  double now = GetNow();
+  if(now > endtime)
+  {
+    return;
+  }
+  else
+  {
+    if(now < begintime)
+    {
+
+    }
+    else
+    {
+      uti += delta;
+    }
+    Simulator::Schedule(Seconds(0.1), &UpdateUtility, begintime, endtime, delta);
+  }
+}
+void AddUtilityPlot()
+{
+  if(numScenario > 0)
+  {
+    return;
+  }
+  utidts.Add(GetNow(), uti);
+  Simulator::Schedule(Seconds(0.5), &AddUtilityPlot);
+}
+void NumUAVPlot()
+{
+  if(numScenario > 0)
+  {
+    return;
+  }
+  int n = 0;
+  for(int i = 0; i < NUM_CELL; i++)
+  {
+    for(int j = 0; j < NUM_UAV; j++)
+    {
+      if(uavState[i][j] == 1)
+      {
+        n++;
+      }
+      else
+      {
+
+      }
+    }
+  }
+  uavdts.Add(GetNow(), n);
+  Simulator::Schedule(Seconds(0.5), &NumUAVPlot);
+}
+void CreateUtilityPlot ()
+{
+  std::string fileNameWithNoExtension = "utility/intercell_"+std::to_string(TOTAL_SITE)+"_"+std::to_string((int)MAX_RESOURCE_PER_UAV);
+  std::string graphicsFileName        = "intercell_"+std::to_string(TOTAL_SITE)+"_"+std::to_string((int)MAX_RESOURCE_PER_UAV) + ".png";
+  std::string plotFileName            = fileNameWithNoExtension + ".plt";
+  //std::string plotTitle               = "2-D Plot";
+  std::string dataTitle               = "utility";
+  // Instantiate the plot and set its title.
+  Gnuplot plot (graphicsFileName);
+ // plot.SetTitle (plotTitle);
+
+  // Make the graphics file, which the plot file will create when it
+  // is used with Gnuplot, be a PNG file.
+  plot.SetTerminal ("png");
+
+  // Rotate the plot 30 degrees around the x axis and then rotate the
+  // plot 120 degrees around the new z axis.
+  plot.AppendExtra ("set view 30, 120, 1.0, 1.0");
+
+  // Make the zero for the z-axis be in the x-axis and y-axis plane.
+  plot.AppendExtra ("set ticslevel 0");
+
+  // Set the labels for each axis.
+  plot.AppendExtra ("set xlabel \"Coordination X\"");
+  plot.AppendExtra ("set ylabel \"Coordination Y\"");
+  
+
+  // Set the ranges for the x and y axis.
+
+
+  // Instantiate the dataset, set its title, and make the points be
+  // connected by lines.
+
+    utidts.SetStyle (Gnuplot2dDataset::LINES);
+    utidts.SetTitle (dataTitle);
+    plot.AddDataset (utidts);
+  
+  // Open the plot file.
+  std::ofstream plotFile (plotFileName.c_str());
+
+  // Write the plot file.
+  plot.GenerateOutput (plotFile);
+
+  // Close the plot file.
+  plotFile.close ();
+}
+void CreateNumUAVPlot ()
+{
+  std::string fileNameWithNoExtension = "numUAV/intercell_"+std::to_string(TOTAL_SITE)+"_"+std::to_string((int)MAX_RESOURCE_PER_UAV);
+  std::string graphicsFileName        = "intercell_"+std::to_string(TOTAL_SITE)+"_"+std::to_string((int)MAX_RESOURCE_PER_UAV) + ".png";
+  std::string plotFileName            = fileNameWithNoExtension + ".plt";
+  //std::string plotTitle               = "2-D Plot";
+  std::string dataTitle               = "numUAV";
+  // Instantiate the plot and set its title.
+  Gnuplot plot (graphicsFileName);
+ // plot.SetTitle (plotTitle);
+
+  // Make the graphics file, which the plot file will create when it
+  // is used with Gnuplot, be a PNG file.
+  plot.SetTerminal ("png");
+
+  // Rotate the plot 30 degrees around the x axis and then rotate the
+  // plot 120 degrees around the new z axis.
+  plot.AppendExtra ("set view 30, 120, 1.0, 1.0");
+
+  // Make the zero for the z-axis be in the x-axis and y-axis plane.
+  plot.AppendExtra ("set ticslevel 0");
+
+  // Set the labels for each axis.
+  plot.AppendExtra ("set xlabel \"Coordination X\"");
+  plot.AppendExtra ("set ylabel \"Coordination Y\"");
+  
+
+  // Set the ranges for the x and y axis.
+
+
+  // Instantiate the dataset, set its title, and make the points be
+  // connected by lines.
+
+    uavdts.SetStyle (Gnuplot2dDataset::LINES);
+    uavdts.SetTitle (dataTitle);
+    plot.AddDataset (uavdts);
+  
+  // Open the plot file.
+  std::ofstream plotFile (plotFileName.c_str());
+
+  // Write the plot file.
+  plot.GenerateOutput (plotFile);
+
+  // Close the plot file.
+  plotFile.close ();
 }
 void CreatePathPlot ()
 {
   std::string fileNameWithNoExtension = "path/path_intercell_"+std::to_string(TOTAL_SITE)+"_"+std::to_string((int)MAX_RESOURCE_PER_UAV);
-  std::string graphicsFileName        = fileNameWithNoExtension + ".png";
+  std::string graphicsFileName        = "path_intercell_"+std::to_string(TOTAL_SITE)+"_"+std::to_string((int)MAX_RESOURCE_PER_UAV) + ".png";
   std::string plotFileName            = fileNameWithNoExtension + ".plt";
   //std::string plotTitle               = "2-D Plot";
   std::string dataTitle               = "uav";
@@ -171,6 +327,12 @@ void CreatePathPlot ()
     p[i].SetStyle (Gnuplot2dDataset::LINES);
     p[i].SetTitle (dataTitle+std::to_string(i));
     plot.AddDataset (p[i]);
+  }
+  for(int i = 0; i < NUM_UAV; i++)
+  {
+    p1[i].SetStyle (Gnuplot2dDataset::LINES);
+    p1[i].SetTitle (dataTitle+std::to_string(i));
+    plot.AddDataset (p1[i]);
   }
   // Open the plot file.
   std::ofstream plotFile (plotFileName.c_str());
@@ -512,7 +674,7 @@ void NewScenario()
   Tbegin = GetNow();
  // CreateSite();
   ReadScenario();
-  for(int i = 0; i < NUM_CELL; i++)
+  for(int i = 0; i < NUM_CELL-1; i++)
   {
     Execute(i);
   }
@@ -613,7 +775,7 @@ void Execute(int cellId)
   }
   else if(cellId == 6)
   {
-    uavState[cellId][0] = 1;
+   // uavState[cellId][0] = 1;
   }
   else
   {
@@ -684,6 +846,7 @@ void InterCell(int cellId)
   {
     Ptr<UAV> u = result[i].first;
     int id = result[i].second;
+   // std::cout<<"uav "<<u->GetUavId()<<" segment "<<id<<" size = "<<(int)segment[cellId][id].GetSize()<<std::endl;
     int size = (int)segment[cellId][id].GetSize();
     for(int i = 0; i < size; i++)
     {
@@ -883,14 +1046,29 @@ void DivideSitesIntoSegment(int cellId)
 void FindSegment(int cellId, int uavId)
 {
  // std::cout<<"find segment cell "<<cellId<<" uav "<<uavId<<std::endl;
-  if(segmentsOfUav[cellId][uavId].size() == 0)
+  int size = segmentsOfUav[cellId][uavId].size();
+  if(size == 0)
   {
     return;
   }
   else
   {
+    //
+    
     int id = segmentsOfUav[cellId][uavId][0];
-    segmentsOfUav[cellId][uavId].erase(segmentsOfUav[cellId][uavId].begin());
+    double maxUti = segment[cellId][id].GetExpectedUtility(cellId);
+    for(int i = 1; i < size; i++)
+    {
+      int sm = segmentsOfUav[cellId][uavId][i];
+      double expectedUti = segment[cellId][sm].GetExpectedUtility(cellId);
+      if(expectedUti > maxUti)
+      {
+        maxUti = expectedUti;
+        id = sm;
+      }
+    }
+    //
+    RemoveValueInVector<int>(segmentsOfUav[cellId][uavId], id);
     Ptr<UAV> u = uav[cellId].GetUav(uavId);
     AllocateSegment(u, id);
     uavState[cellId][uavId] = 1;
@@ -900,10 +1078,22 @@ void FindSegment(int cellId, int uavId)
 void AllocateSegment(Ptr<UAV> u, int id)
 {
   int cellId = u -> GetCellId();
+  double uti1 = segment[cellId][id].GetExpectedUtility(cellId);
+  double uti2 = segment[cellId][id].GetReverseUtility(cellId);
   int size = (int)segment[cellId][id].GetSize();
-  for(int i = 0; i < size; i++)
+  if(uti1 > uti2)
   {
-    u -> AddSite(segment[cellId][id].Get(i));
+    for(int i = 0; i < size; i++)   
+    {
+      u -> AddSite(segment[cellId][id].Get(i));
+    }
+  }
+  else
+  {
+    for(int i = size-1; i >= 0; i--)
+    {
+      u -> AddSite(segment[cellId][id].Get(i));
+    }
   }
 }
 void ChangeColor(int cellId, int sensorId)
@@ -918,7 +1108,7 @@ void DoTask(Ptr<UAV> u)
 {
   int uavId = u -> GetUavId();
   int cellId = u -> GetCellId();
-  if(cellId == 0 || cellId == 6 && numScenario == 0)
+  if((cellId == 0 || cellId == 6) && numScenario == 0)
   {
     AddPath(uavId, cellId);
   }
@@ -929,7 +1119,7 @@ void DoTask(Ptr<UAV> u)
     u -> UpdateFlightTime(flightTime);
     u -> UpdateEnergy(FLYING);
     u -> UpdateFliedDistance(VUAV*flightTime);
-    if(cellId == 0 || cellId == 6 && numScenario == 0)
+    if((cellId == 0 || cellId == 6) && numScenario == 0)
     {
       length0 += VUAV*flightTime;
       Simulator::Schedule(Seconds(flightTime), &AddPath, uavId, cellId);
@@ -949,10 +1139,16 @@ void DoTask(Ptr<UAV> u)
   u->RemoveSite();
   double visitedTime = s -> GetVisitedTime();
   u->UpdateFlightTime(flightTime + visitedTime);
-  myPair1 m1 = std::make_pair(s->GetId(), std::to_string(cellId) + std::to_string(uavId));
-  myPair m2 = std::make_pair(GetNow() + flightTime, GetNow() + flightTime + visitedTime);
-  workInfor[cellId].push_back(std::make_pair(m1, m2));
-  if(cellId == 0 || cellId == 6 && numScenario == 0)
+  double begintime = GetNow() + flightTime;
+  double endtime = GetNow() + flightTime + visitedTime;
+  s->SetBeginTime(begintime);
+  s->SetEndTime(endtime);
+  double utility = s->GetRealUtility();
+  UpdateUtility(begintime, endtime, utility/10.0/(endtime-begintime));
+ // myPair1 m1 = std::make_pair(s->GetId(), std::to_string(cellId) + std::to_string(uavId));
+ // myPair m2 = std::make_pair(GetNow() + flightTime, GetNow() + flightTime + visitedTime);
+ // workInfor[cellId].push_back(std::make_pair(m1, m2));
+  if((cellId == 0 || cellId == 6) && numScenario == 0)
   {
     length0 += VUAV*flightTime;
     Simulator::Schedule(Seconds(flightTime), &AddPath, uavId, cellId);
@@ -1039,10 +1235,11 @@ void Reset()
       finish[i] = 0;
     }
     numSite[i] = 0;
-    workInfor[i].clear();
+   // workInfor[i].clear();
     completedSites[i].clear();
     cell_site_list[i].Clear();
     dataLoad = 0;
+    uti = 0;
     for(int j = 0; j < NUM_UAV; j++)
     {
       Ptr<UAV> u = uav[i].GetUav(j);
@@ -1062,17 +1259,17 @@ void Reset()
 void EndScenario()
 {
   std::cout<<"end scenario "<<numScenario<<std::endl;
+
   double Tend = GetNow();
   double energy = 0;
   double fliedDistance = 0;
-  double utility = 0;
   double flightTime = 0;
   for(int i = 0; i < NUM_CELL; i++)
   {
     //std::cout<<i<<": "<<numSite[i]<<std::endl;
     energy += uav[i].CalculateEnergyConsumption()/1000000.0;
     fliedDistance += uav[i].CalculateFliedDistance()/1000.0;
-    utility += cell_site_list[i].GetUtility();
+   // utility += cell_site_list[i].GetUtility();
     flightTime += uav[i].CalculateFlightTime()/3600.0;
   }
   // for(int i = 0; i < NUM_CELL; i++)
@@ -1101,15 +1298,16 @@ void EndScenario()
   cumulativeFlightTime += flightTime;
   cumulativeEnergy += energy;
   cumulativeFlightDistance += fliedDistance;
-  cumulativeBenefit += utility - cost;
+  cumulativeUtility += uti;
+  cumulativeBenefit += uti - cost;
   cumulativeData += dataLoad/1024.0/1024.0;
   std::cout<<"spanning time = "<<(Tend - Tbegin)/60.0<<std::endl;
   std::cout<<"flightTime = "<<flightTime<<std::endl;
   std::cout<<"energy = "<<energy<<std::endl;
   std::cout<<"fliedDistance = "<<fliedDistance<<std::endl;
-  std::cout<<"benefit = "<<utility - cost<<std::endl;
+  std::cout<<"utility = "<<uti<<std::endl;
+  std::cout<<"benefit = "<<uti - cost<<std::endl;
   std::cout<<"data = "<<dataLoad/1024.0/1024.0<<std::endl;
-  Reset();
   numScenario++;
   if(numScenario == NUM_SCENARIO)
   {
@@ -1118,6 +1316,7 @@ void EndScenario()
   }
   else
   {
+    Reset();
     NewScenario();
   }
 }
@@ -1130,6 +1329,8 @@ void StopSimulation()
   std::cout<<"Flied distance: "<<cumulativeFlightDistance/NUM_SCENARIO<<" km"<<std::endl;
   std::cout<<"Benefit: "<<cumulativeBenefit/NUM_SCENARIO<<std::endl;
   std::cout<<"Data: "<<cumulativeData/NUM_SCENARIO<<" MB"<<std::endl;
+  CreateUtilityPlot();
+  CreateNumUAVPlot();
   CreatePathPlot();
   Simulator::Stop();
 }

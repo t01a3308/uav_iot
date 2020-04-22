@@ -80,6 +80,8 @@ int main()
   }
  // anim = new AnimationInterface("animation/inter-cell.xml");
   CalculateNumberOfSites();
+  AddUtilityPlot();
+  NumUAVPlot();
   NewScenario();;
   Simulator::Run();
   Simulator::Destroy();

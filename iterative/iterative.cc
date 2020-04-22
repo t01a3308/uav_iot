@@ -83,6 +83,8 @@ int main()
   }
  // anim = new AnimationInterface("iterative.xml");
   CalculateNumberOfSites();
+  AddUtilityPlot();
+  NumUAVPlot();
   NewScenario();
   Simulator::Run();
   Simulator::Destroy();

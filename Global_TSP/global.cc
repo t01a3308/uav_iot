@@ -81,6 +81,8 @@ int main()
 
  // anim = new AnimationInterface("animation/global_tsp.xml");
   CalculateNumberOfSites();
+  AddUtilityPlot();
+  NumUAVPlot();
   NewScenario();
   Simulator::Run();
   Simulator::Destroy();

@@ -77,8 +77,10 @@ int main()
     SetupApplication(i);
     UavSend(i);
   }
-  anim = new AnimationInterface("animation/gelsga.xml");
+  //anim = new AnimationInterface("animation/gelsga.xml");
   CalculateNumberOfSites();
+  AddUtilityPlot();
+  NumUAVPlot();
   NewScenario();
   
   Simulator::Run();

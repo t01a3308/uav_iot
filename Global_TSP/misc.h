@@ -202,3 +202,18 @@ int FindId(double a[], int n, int m) // find id of m-th smallest element of arra
 	}
 	return 9999;
 }
+template <class D>
+int IdMin(D a[], int n)
+{
+	int id = 0;
+	int min = a[0];
+	for(int i = 1; i < n; i++)
+	{
+		if(a[i] < min)
+		{
+			id = i;
+			min = a[i];
+		}
+	}
+	return id;
+}

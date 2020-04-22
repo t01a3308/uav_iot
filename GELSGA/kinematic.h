@@ -35,8 +35,8 @@
 #include <list>
 #include "macro_param.h"
 #include "communication.h"
-#define NUM_CHROMOSOME 20
-#define NUM_ITERATOR 100
+#define NUM_CHROMOSOME 50
+#define NUM_ITERATOR 10000
 using namespace ns3;
 extern AnimationInterface *anim;
 extern double dataLoad;
@@ -90,9 +90,10 @@ double cumulativeFlightDistance = 0;
 double cumulativeEnergy = 0;
 double cumulativeBenefit = 0;
 double cumulativeData = 0;
+double uti = 0;
 //
-
 Gnuplot2dDataset p[NUM_UAV];
+Gnuplot2dDataset utidts, uavdts;
 //
 Vector GetPosition(Ptr<Node> node);
 void SetPosition(Ptr<Node> node, Vector pos);
@@ -159,6 +160,147 @@ void AddPath(int uavId)
 {
   Vector pos = GetPosition(uav[0].Get(uavId));
   p[uavId].Add(pos.x, pos.y);
+}
+void UpdateUtility(double begintime, double endtime, double delta)
+{
+  double now = GetNow();
+  if(now > endtime)
+  {
+    return;
+  }
+  else
+  {
+    if(now < begintime)
+    {
+
+    }
+    else
+    {
+      uti += delta;
+    }
+    Simulator::Schedule(Seconds(0.1), &UpdateUtility, begintime, endtime, delta);
+  }
+}
+void AddUtilityPlot()
+{
+  if(numScenario > 0)
+  {
+    return;
+  }
+  utidts.Add(GetNow(), uti);
+  Simulator::Schedule(Seconds(0.5), &AddUtilityPlot);
+}
+void NumUAVPlot()
+{
+  if(numScenario > 0)
+  {
+    return;
+  }
+  int n = 0;
+  for(int i = 0; i < NUM_CELL; i++)
+  {
+    for(int j = 0; j < NUM_UAV; j++)
+    {
+      if(uavState[i][j] == 1)
+      {
+        n++;
+      }
+    }
+  }
+  uavdts.Add(GetNow(), n);
+  Simulator::Schedule(Seconds(0.5), &NumUAVPlot);
+}
+void CreateUtilityPlot ()
+{
+  std::string fileNameWithNoExtension = "utility/gelsga_"+std::to_string(TOTAL_SITE)+"_"+std::to_string((int)MAX_RESOURCE_PER_UAV);
+  std::string graphicsFileName        = "gelsga_"+std::to_string(TOTAL_SITE)+"_"+std::to_string((int)MAX_RESOURCE_PER_UAV) + ".png";
+  std::string plotFileName            = fileNameWithNoExtension + ".plt";
+  //std::string plotTitle               = "2-D Plot";
+  std::string dataTitle               = "utility";
+  // Instantiate the plot and set its title.
+  Gnuplot plot (graphicsFileName);
+ // plot.SetTitle (plotTitle);
+
+  // Make the graphics file, which the plot file will create when it
+  // is used with Gnuplot, be a PNG file.
+  plot.SetTerminal ("png");
+
+  // Rotate the plot 30 degrees around the x axis and then rotate the
+  // plot 120 degrees around the new z axis.
+  plot.AppendExtra ("set view 30, 120, 1.0, 1.0");
+
+  // Make the zero for the z-axis be in the x-axis and y-axis plane.
+  plot.AppendExtra ("set ticslevel 0");
+
+  // Set the labels for each axis.
+  plot.AppendExtra ("set xlabel \"Coordination X\"");
+  plot.AppendExtra ("set ylabel \"Coordination Y\"");
+  
+
+  // Set the ranges for the x and y axis.
+
+
+  // Instantiate the dataset, set its title, and make the points be
+  // connected by lines.
+
+    utidts.SetStyle (Gnuplot2dDataset::LINES);
+    utidts.SetTitle (dataTitle);
+    plot.AddDataset (utidts);
+  
+  // Open the plot file.
+  std::ofstream plotFile (plotFileName.c_str());
+
+  // Write the plot file.
+  plot.GenerateOutput (plotFile);
+
+  // Close the plot file.
+  plotFile.close ();
+}
+void CreateNumUAVPlot ()
+{
+  std::string fileNameWithNoExtension = "numUAV/gelsga_"+std::to_string(TOTAL_SITE)+"_"+std::to_string((int)MAX_RESOURCE_PER_UAV);
+  std::string graphicsFileName        = "gelsga_"+std::to_string(TOTAL_SITE)+"_"+std::to_string((int)MAX_RESOURCE_PER_UAV) + ".png";
+  std::string plotFileName            = fileNameWithNoExtension + ".plt";
+  //std::string plotTitle               = "2-D Plot";
+  std::string dataTitle               = "numUAV";
+  // Instantiate the plot and set its title.
+  Gnuplot plot (graphicsFileName);
+ // plot.SetTitle (plotTitle);
+
+  // Make the graphics file, which the plot file will create when it
+  // is used with Gnuplot, be a PNG file.
+  plot.SetTerminal ("png");
+
+  // Rotate the plot 30 degrees around the x axis and then rotate the
+  // plot 120 degrees around the new z axis.
+  plot.AppendExtra ("set view 30, 120, 1.0, 1.0");
+
+  // Make the zero for the z-axis be in the x-axis and y-axis plane.
+  plot.AppendExtra ("set ticslevel 0");
+
+  // Set the labels for each axis.
+  plot.AppendExtra ("set xlabel \"Coordination X\"");
+  plot.AppendExtra ("set ylabel \"Coordination Y\"");
+  
+
+  // Set the ranges for the x and y axis.
+
+
+  // Instantiate the dataset, set its title, and make the points be
+  // connected by lines.
+
+    uavdts.SetStyle (Gnuplot2dDataset::LINES);
+    uavdts.SetTitle (dataTitle);
+    plot.AddDataset (uavdts);
+  
+  // Open the plot file.
+  std::ofstream plotFile (plotFileName.c_str());
+
+  // Write the plot file.
+  plot.GenerateOutput (plotFile);
+
+  // Close the plot file.
+  plotFile.close ();
 }
 void CreatePathPlot ()
 {
@@ -355,8 +497,10 @@ void CalculateNumberOfSites()
   }
   for(int cellId = 0; cellId < NUM_CELL-1; cellId++)
   {
-    num_vehicles[cellId] = (int)numberOfSites[cellId]*RESOURCE_FACTOR*MAX_VALUE/MAX_RESOURCE_PER_UAV + 1;
-   // std::cout<<"num_vehicles "<<cellId<<" = "<<num_vehicles[cellId]<<std::endl;
+    std::vector< std::vector<int> > sm;
+    std::string filename = "output_cvrp/output_" + std::to_string(cellId) + "_" + std::to_string(TOTAL_SITE) + "_" +std::to_string((int)MAX_RESOURCE_PER_UAV) + "_" + std::to_string(numScenario) + ".txt";
+    ReadDataIntoArray(filename, sm);
+    num_vehicles[cellId] = sm.size();
   }
 }
 void CreateSite()
@@ -1129,7 +1273,7 @@ void Mutation(int cellId)
 }
 void Terminate(int cellId)
 {
-  std::cout<<"Terminate cell "<<cellId<<" iterator "<<numIterator<<std::endl;
+ // std::cout<<"Terminate scenario "<<numScenario<< cell "<<cellId<<" iterator "<<numIterator<<std::endl;
   double childrenFitness = CalculateFitness(children, cellId);
  // std::cout<<"children fitness = "<<childrenFitness<<std::endl;
   int idMax = 0;
@@ -1179,7 +1323,7 @@ void Terminate(int cellId)
     //   int id = gelsga_out[cellId][i];
     //   std::cout<<id<<" ";
     // }
-    std::cout<<std::endl;
+   // std::cout<<std::endl;
     path[cellId].clear();
     path[cellId] = gelsga_out[cellId];
     
@@ -1189,7 +1333,8 @@ void Terminate(int cellId)
   {
     numIterator++;
    // std::cout<<"iterator "<<numIterator<<std::endl;
-    GELS(cellId);
+    CrossOver(cellId);
+    //GELS(cellId);
   }
 }
 void GELS(int cellId)
@@ -1231,12 +1376,12 @@ void GELS(int cellId)
         std::vector<int> ca;
         for(int k = 0; k <= j; k++)
         {
-          ca.push_back(chromosome[i][k]);
+          ca.push_back(chromosome[i][k]); //before j
         }
         std::vector<int> id;
         for(int k = j+1; k < size; k++)
         {
-          id.push_back(chromosome[i][k]);
+          id.push_back(chromosome[i][k]); // after j
         }
         std::vector<double> m;    
         for(int k = j+1; k < size; k++)
@@ -1611,16 +1756,30 @@ void DivideSitesIntoSegment(int cellId)
 }
 void FindSegment(int cellId, int uavId)
 {
-  //std::cout<<"find segment cell "<<cellId<<" uav "<<uavId<<std::endl;
-  if(segmentsOfUav[cellId][uavId].size() == 0)
+ // std::cout<<"find segment cell "<<cellId<<" uav "<<uavId<<std::endl;
+  int size = segmentsOfUav[cellId][uavId].size();
+  if(size == 0)
   {
-   // std::cout<<"size uav "<<uavId<<" = 0"<<std::endl;
     return;
   }
   else
   {
+    //
+    
     int id = segmentsOfUav[cellId][uavId][0];
-    segmentsOfUav[cellId][uavId].erase(segmentsOfUav[cellId][uavId].begin());
+    double maxUti = segment[cellId][id].GetExpectedUtility(cellId);
+    for(int i = 1; i < size; i++)
+    {
+      int sm = segmentsOfUav[cellId][uavId][i];
+      double expectedUti = segment[cellId][sm].GetExpectedUtility(cellId);
+      if(expectedUti > maxUti)
+      {
+        maxUti = expectedUti;
+        id = sm;
+      }
+    }
+    //
+    RemoveValueInVector<int>(segmentsOfUav[cellId][uavId], id);
     Ptr<UAV> u = uav[cellId].GetUav(uavId);
     AllocateSegment(u, id);
     uavState[cellId][uavId] = 1;
@@ -1631,13 +1790,23 @@ void FindSegment(int cellId, int uavId)
 void AllocateSegment(Ptr<UAV> u, int id)
 {
   int cellId = u -> GetCellId();
- // int uavId = u -> GetUavId();
-  
- // std::cout<<"cell "<<cellId<<": allocate segment "<<id<<" for uav "<<uavId<<std::endl;
+  double uti1 = segment[cellId][id].GetExpectedUtility(cellId);
+  double uti2 = segment[cellId][id].GetReverseUtility(cellId);
   int size = (int)segment[cellId][id].GetSize();
-  for(int i = 0; i < size; i++)
+  if(uti1 > uti2)
   {
-    u -> AddSite(segment[cellId][id].Get(i));
+    for(int i = size-1; i >= 0; i--)
+    {
+      u -> AddSite(segment[cellId][id].Get(i));
+    }
+  }
+  else
+  {
+    for(int i = 0; i < size; i++)
+    
+    {
+      u -> AddSite(segment[cellId][id].Get(i));
+    }
   }
 }
 void ChangeColor(int cellId, int sensorId)
@@ -1678,6 +1847,12 @@ void DoTask(Ptr<UAV> u)
   u->RemoveSite();
   double visitedTime = s -> GetVisitedTime();
   u->UpdateFlightTime(flightTime + visitedTime);
+  double begintime = GetNow() + flightTime;
+  double endtime = GetNow() + flightTime + visitedTime;
+  s->SetBeginTime(begintime);
+  s->SetEndTime(endtime);
+  double utility = s->GetRealUtility();
+  UpdateUtility(begintime, endtime, utility/10.0/(endtime-begintime));
   myPair1 m1 = std::make_pair(s->GetId(), std::to_string(cellId) + std::to_string(uavId));
   myPair m2 = std::make_pair(GetNow() + flightTime, GetNow() + flightTime + visitedTime);
   workInfor[cellId].push_back(std::make_pair(m1, m2));
@@ -1772,6 +1947,7 @@ void Reset()
     completedSites[i].clear();
     cell_site_list[i].Clear();
     dataLoad = 0;
+    uti = 0;
     for(int j = 0; j < NUM_UAV; j++)
     {
       Ptr<UAV> u = uav[i].GetUav(j);
@@ -1791,17 +1967,17 @@ void Reset()
 void EndScenario()
 {
   std::cout<<"end scenario "<<numScenario<<std::endl;
+
   double Tend = GetNow();
   double energy = 0;
   double fliedDistance = 0;
-  double utility = 0;
   double flightTime = 0;
   for(int i = 0; i < NUM_CELL; i++)
   {
     //std::cout<<i<<": "<<numSite[i]<<std::endl;
     energy += uav[i].CalculateEnergyConsumption()/1000000.0;
     fliedDistance += uav[i].CalculateFliedDistance()/1000.0;
-    utility += cell_site_list[i].GetUtility();
+   // utility += cell_site_list[i].GetUtility();
     flightTime += uav[i].CalculateFlightTime()/3600.0;
   }
   // for(int i = 0; i < NUM_CELL; i++)
@@ -1830,13 +2006,13 @@ void EndScenario()
   cumulativeFlightTime += flightTime;
   cumulativeEnergy += energy;
   cumulativeFlightDistance += fliedDistance;
-  cumulativeBenefit += utility - cost;
+  cumulativeBenefit += uti - cost;
   cumulativeData += dataLoad/1024.0/1024.0;
   std::cout<<"spanning time = "<<(Tend - Tbegin)/60.0<<std::endl;
   std::cout<<"flightTime = "<<flightTime<<std::endl;
   std::cout<<"energy = "<<energy<<std::endl;
   std::cout<<"fliedDistance = "<<fliedDistance<<std::endl;
-  std::cout<<"benefit = "<<utility - cost<<std::endl;
+  std::cout<<"benefit = "<<uti - cost<<std::endl;
   std::cout<<"data = "<<dataLoad/1024.0/1024.0<<std::endl;
   Reset();
   numScenario++;
@@ -1852,13 +2028,15 @@ void EndScenario()
 }
 void StopSimulation()
 {
-  std::cout<<"GELSGA R0 = "<<MAX_RESOURCE_PER_UAV<<", total site = "<<TOTAL_SITE<<std::endl;
+  std::cout<<"Gelsga R0 = "<<MAX_RESOURCE_PER_UAV<<", total site = "<<TOTAL_SITE<<std::endl;
   std::cout<<"Spanning time: "<<cumulativeSpanningTime/NUM_SCENARIO<<" m"<<std::endl;
   std::cout<<"Flight time: "<<cumulativeFlightTime/NUM_SCENARIO<<" h"<<std::endl;
   std::cout<<"Energy: "<<cumulativeEnergy/NUM_SCENARIO<<" MJ"<<std::endl;
   std::cout<<"Flied distance: "<<cumulativeFlightDistance/NUM_SCENARIO<<" km"<<std::endl;
   std::cout<<"Benefit: "<<cumulativeBenefit/NUM_SCENARIO<<std::endl;
   std::cout<<"Data: "<<cumulativeData/NUM_SCENARIO<<" MB"<<std::endl;
+  CreateUtilityPlot();
+  CreateNumUAVPlot();
   CreatePathPlot();
   Simulator::Stop();
 }

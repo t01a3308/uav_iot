@@ -34,14 +34,15 @@
 #define TOTAL_SITE 500
 #define MAX_SITE_PER_CELL 200
 #define VUAV 5.0 // m/s
-#define MAX_RESOURCE_PER_UAV 150
+#define MAX_RESOURCE_PER_UAV 650
 //sensor data
 #define MIN_VALUE 50.0
 #define MAX_VALUE 100.0
 //#define THRESHOLD 50.0
 //
 #define K_FACTOR 1.0
-#define Rd 10.0
+#define Rd 300.0
+#define UTILITY_FACTOR 2.0
 //#define ALPHA_FACTOR 1
 #define VISITED_TIME_UTILITY_FACTOR 10.0
 #define RESOURCE_FACTOR 1.0

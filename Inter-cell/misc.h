@@ -31,16 +31,16 @@
 #include "ns3/yans-wifi-helper.h"
 #include <iostream>
 #include <math.h>
-#include <utility>
 #include "macro_param.h"
 
 using namespace ns3;
 using namespace std;
+class UAV;
 double GetNow()
 {
   return Simulator::Now().GetSeconds();
 }
-pair<int, int> FindLargestElement(double a[][MAX_SITE_PER_CELL], int m, int n)
+pair<int, int> FindLargestElement(double a[][MAX_SITE_PER_CELL], int m, int n) // find max value in matrix
 {
 	int row = 0, col = 0;
 	double max = a[0][0];
@@ -79,7 +79,7 @@ D GetValue(std::list<D>& l,int n)
   std::advance(i, n);
   return *i; 
 }
-void ReadDataIntoArray(std::string filename, std::vector< std::vector<int> > &arr)
+void ReadDataIntoArray(std::string filename, std::vector< std::vector<int> > &arr)// 2 dimentions array
 {
 	//
 	std::string line;
@@ -134,7 +134,7 @@ void ReadDataIntoArray(std::string filename, std::vector< std::vector<int> > &ar
 		std::cout<<"cannot open file "<<filename<<std::endl;
 	}
 }
-void ReadData(std::string filename, std::vector<double> &arr)
+void ReadData(std::string filename, std::vector<double> &arr)// data in single line, seperated by space character
 {
  // std::cout<<filename<<std::endl;
   std::string line;
@@ -182,4 +182,38 @@ void ReadData(std::string filename, std::vector<double> &arr)
   {
     std::cout<<"cannot open file "<<filename<<std::endl;
   }
+}
+int FindId(double a[], int n, int m) // find id of m-th smallest element of array a which has size n
+{
+	for(int i = 0; i < n; i++)
+	{
+		int rank = 0;
+		for(int j = 0; j < n; j++)
+		{
+			if(a[j] < a[i])
+			{
+				rank++;
+			}
+		}
+		if(rank == m)
+		{
+			return i;
+		}
+	}
+	return 9999;
+}
+template <class D>
+int IdMin(D a[], int n)
+{
+	int id = 0;
+	int min = a[0];
+	for(int i = 1; i < n; i++)
+	{
+		if(a[i] < min)
+		{
+			id = i;
+			min = a[i];
+		}
+	}
+	return id;
 }

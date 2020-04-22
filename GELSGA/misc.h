@@ -211,8 +211,8 @@ int IdMin(D a[], int n)
 	{
 		if(a[i] < min)
 		{
-			min = a[i];
 			id = i;
+			min = a[i];
 		}
 	}
 	return id;
