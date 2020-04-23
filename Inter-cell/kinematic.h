@@ -45,6 +45,7 @@ extern GwContainer gw[NUM_CELL];
 extern NodeContainer allNodes[NUM_CELL];
 extern std::map<Ptr<Node>, double> sensorData[NUM_CELL]; // all data
 //
+
 int siteData[MAX_SITE_PER_CELL*NUM_CELL];
 int numberOfSites[NUM_CELL-1];
 //
@@ -83,6 +84,17 @@ double uti = 0;
 Gnuplot2dDataset p[NUM_UAV], p1[NUM_UAV];
 Gnuplot2dDataset utidts, uavdts;
 //
+//variables for TSP
+double dist_matrix[21][21];
+std::vector <int> path;
+int VISITED_ALL; // 
+double dp[2097152][21]; //
+typedef std::pair < double, std::vector<int> > myPairs;
+std::map < std::pair<int, int>, std::vector<int> > myMap;
+//
+//functions to solve TSP
+myPairs TSP(int mask, int current, int n);
+//
 Vector GetPosition(Ptr<Node> node);
 void SetPosition(Ptr<Node> node, Vector pos);
 Vector GetVelocity(Ptr<Node> node);
@@ -111,7 +123,90 @@ int IsFinish(int cellId);
 void EndScenario();
 void StopSimulation();
 /*Function implementation goes here*/
-
+SiteList LocalTSP(SiteList sl, Vector depot)
+{
+  SiteList res;
+  int n = sl.GetSize();
+  path.clear();
+  for(int i = 0; i < (1<<(n+1)); i++)
+  {
+    for(int j = 0; j < n+1; j++)
+    {
+      dp[i][j] = -1;
+    }
+   }
+  VISITED_ALL = (1<<(n+1)) - 1;
+  Vector pos[n];  
+  for (int i = 0; i < n; i++)
+  {
+    Ptr<SITE> s = sl.Get(i);
+    pos[i] = s->GetSitePosition();
+  }
+  dist_matrix[0][0] = 0;
+  for(int k1 = 1; k1 <= n; k1++)
+  {
+    dist_matrix[0][k1] = dist_matrix[k1][0] = CalculateDistance(pos[k1-1], depot);
+    for(int k2 = 1; k2 <= n; k2++)
+    {
+      dist_matrix[k1][k2] = CalculateDistance(pos[k1-1], pos[k2-1]);
+    }
+  }
+  //Solve TSP
+  myPairs m = TSP(1, 0, n);
+  path = m.second; 
+ // std::cout<<"path: "<<std::endl;
+  for(int i = 1; i <= n; i++)
+  {
+    Ptr<SITE> s = sl.Get(path[i]);
+    res.Add(s);
+   // std::cout<<s->GetId()<<" ";
+  }
+ // std::cout<<std::endl;
+ // std::cout<<"length : "<<m.first<<std::endl;
+  myMap.clear();
+  return res;
+}
+myPairs TSP(int mask,int current, int n) // 
+{   
+  std::vector <int> v;
+  v.push_back(current-1);
+  if(mask==VISITED_ALL)
+  {
+    return std::make_pair(dist_matrix[current][0], v);
+  }
+  if(dp[mask][current]!=-1)
+  {
+    return std::make_pair(dp[mask][current], myMap[std::make_pair(mask, current)]);
+  }
+   //Now from current node, we will try to go to every other node and take the min ans
+   
+  int ans = INT_MAX;
+  //Visit all the unvisited cities and take the best route
+  for(int k = 0; k < (n+1); k++)
+  {
+    if((mask & (1<<k)) == 0) // k haven't been visited
+    {
+      int newMask = mask | (1<<k);
+      myPairs m = TSP(newMask, k, n);
+      double newAns = dist_matrix[current][k] + m.first;           
+      if(newAns < ans)
+      {
+        ans = newAns;
+        int first = v[0];
+        v.clear();
+        v.push_back(first);
+        std::vector<int> v1 = m.second;
+        for(int i = 0; i < (int)v1.size(); i++)
+        {
+          v.push_back(v1[i]);
+        }
+      }
+    }
+  }      
+  dp[mask][current] = ans;
+  myMap[std::make_pair(mask, current)] = v;
+  return std::make_pair(ans, v);
+} 
 void SetPosition(Ptr<Node> node, Vector pos)
 {
 
@@ -292,8 +387,8 @@ void CreateNumUAVPlot ()
 }
 void CreatePathPlot ()
 {
-  std::string fileNameWithNoExtension = "path/path_intercell_"+std::to_string(TOTAL_SITE)+"_"+std::to_string((int)MAX_RESOURCE_PER_UAV);
-  std::string graphicsFileName        = "path_intercell_"+std::to_string(TOTAL_SITE)+"_"+std::to_string((int)MAX_RESOURCE_PER_UAV) + ".png";
+  std::string fileNameWithNoExtension = "path/intercell_"+std::to_string(TOTAL_SITE)+"_"+std::to_string((int)MAX_RESOURCE_PER_UAV);
+  std::string graphicsFileName        = "intercell_"+std::to_string(TOTAL_SITE)+"_"+std::to_string((int)MAX_RESOURCE_PER_UAV) + ".png";
   std::string plotFileName            = fileNameWithNoExtension + ".plt";
   //std::string plotTitle               = "2-D Plot";
   std::string dataTitle               = "uav";
@@ -802,10 +897,16 @@ void InterCell(int cellId)
   dataLoad += 10 * UAV_PACKET_SIZE;
   // reply result
   dataLoad += 3 * UAV_PACKET_SIZE;
-  
+  SiteList sl[numSegment[cellId]];
   for(int i = 0; i < numSegment[cellId]; i++)
   {
     segmentId.push_back(i);
+    int m = segment[cellId][i].GetSize();
+    if(m > 20)
+    {
+      std::cout<<"segment "<<i<<" size > 20"<<std::endl;
+    }
+    sl[i] = LocalTSP(segment[cellId][i], Vector(X[6], Y[6], height));
   }
   for(int i = 0; i < NUM_UAV; i++)
   {
@@ -827,8 +928,8 @@ void InterCell(int cellId)
       Vector pos = GetPosition(neighbor[i]);
       for(int j = 0; j < size; j++)
       {
-        double utility = segment[cellId][segmentId[j]].GetUtility();
-        double length = segment[cellId][segmentId[j]].GetLength(pos);
+        double utility = sl[segmentId[j]].GetExpectedUtility(6);
+        double length = sl[segmentId[j]].GetLength(pos);
         double cost = CalculateCost(length);
         double benef = utility - cost;
         benefit[i][j] = benef;
@@ -847,10 +948,22 @@ void InterCell(int cellId)
     Ptr<UAV> u = result[i].first;
     int id = result[i].second;
    // std::cout<<"uav "<<u->GetUavId()<<" segment "<<id<<" size = "<<(int)segment[cellId][id].GetSize()<<std::endl;
-    int size = (int)segment[cellId][id].GetSize();
-    for(int i = 0; i < size; i++)
+    int size = (int)sl[id].GetSize();
+    double uti1 = sl[id].GetExpectedUtility(6);
+    double uti2 = sl[id].GetReverseUtility(6);
+    if(uti1 > uti2)
     {
-      u -> AddSite(segment[cellId][id].Get(i));
+      for(int i = 0; i < size; i++)   
+      {
+        u -> AddSite(sl[id].Get(i));
+      }
+    }
+    else
+    {
+      for(int i = size-1; i >= 0; i--)
+      {
+        u -> AddSite(sl[id].Get(i));
+      }
     }
     mark[cellId][id] = 1;
     int id1 = u->GetCellId();

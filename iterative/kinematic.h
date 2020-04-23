@@ -266,8 +266,8 @@ void CreateNumUAVPlot ()
 }
 void CreatePathPlot ()
 {
-  std::string fileNameWithNoExtension = "path_iterative_"+std::to_string(TOTAL_SITE)+"_"+std::to_string((int)MAX_RESOURCE_PER_UAV);
-  std::string graphicsFileName        = fileNameWithNoExtension + ".png";
+  std::string fileNameWithNoExtension = "path/iterative_"+std::to_string(TOTAL_SITE)+"_"+std::to_string((int)MAX_RESOURCE_PER_UAV);
+  std::string graphicsFileName        = "iterative_"+std::to_string(TOTAL_SITE)+"_"+std::to_string((int)MAX_RESOURCE_PER_UAV) + ".png";
   std::string plotFileName            = fileNameWithNoExtension + ".plt";
   //std::string plotTitle               = "2-D Plot";
   std::string dataTitle               = "uav";
@@ -667,7 +667,7 @@ void Execute(int cellId)
   }
   for(int i = 0 ; i < NUM_UAV; i++)
   {
-    Simulator::Schedule(Seconds(i), &DoTask, uav[cellId].GetUav(i));
+    Simulator::Schedule(Seconds(0.01*i), &DoTask, uav[cellId].GetUav(i));
   }  
 }
 void FindSite(Ptr<UAV> u)

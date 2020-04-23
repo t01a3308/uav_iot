@@ -34,7 +34,7 @@
 #define TOTAL_SITE 500
 #define MAX_SITE_PER_CELL 200
 #define VUAV 5.0 // m/s
-#define MAX_RESOURCE_PER_UAV 650
+#define MAX_RESOURCE_PER_UAV 150
 //sensor data
 #define MIN_VALUE 50.0
 #define MAX_VALUE 100.0
@@ -56,7 +56,7 @@
 //
 #define PI 3.14159
 //TSP
-#define MAX 4194304// 2^(MAX_SITE_PER_CELL+1)
+#define MAX 2097152//4194304// 2^(MAX_SITE_PER_CELL+1)
 // parameters for communication
 // interval to send periodic packets
 #define UAV_INTERVAL 1 // MINUTE
