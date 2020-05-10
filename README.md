@@ -1,20 +1,23 @@
-1. NS3
-- Các trường hợp đã chạy được là CVRP, Inter-cell, Global TSP và Iterative.
-- Kết quả mô phỏng là giá trị trung bình của 100 kịch bản. Trong mỗi kịch bản, vị trí, resource, utility và visited_time của sites thay đổi.
-- Thư mục "output_cvrp", "output_global_tsp" và "scenario" đặt tại thư mục chứa waf.
-- Thư mục "ouput_cvrp" và "output_global_tsp"  có được sau khi chạy OR-Tools.
-- Thư mục "scenario" là kịch bản ngẫu nhiên tạo ra từ NS3.
-- Định dạng file trong thư mục "output_cvrp": 
-  "output_0_500_150_10.txt": 0 là id cell, 500 là tổng số ites, 150 là resource mỗi chuyến bay, 10 là id scenario.
-- Định dạng file trong thư mục "output_global_tsp" và "scenario": giống định dạng trong thư mục "output_cvrp".
-- Trong file macro_param.h, TOTAL_SITE cố định bằng 500, MAX_RESOURCE_PER_UAV: 150, 200, 250, ..., 650 
-2. OR-Tools (Ubuntu 16.04)
-- Thư mục OR-Tools đặt tại vị trí bất kỳ.
-  + Chạy lệnh: cd OR-Tools/or-tools_Ubuntu-16.04-64bit_v7.5.7466
-  + Thư mục này chứa thư mục con là "input_cvrp" (tạo ra từ NS3) là thư mục chứa file đầu vào của CVRP: ma trận khoảng cách của các sites (ví dụ file dist_0_500_650_50.txt) và resource tiêu hao tại mỗi sites (ví dụ file demand_0_500_650_50.txt), định dạng file trong 2 thư mục này giống định dạng file đã nêu ở mục 1.
-  + Global TSP có đầu vào là ma trận khoảng cách giống CVRP.
-  + Thư mục "output_cvrp" là thư mục kết quả của CVRP. (file chạy là vrp_capacity.cc)
-  + Thư mục "output_global_tsp" là thư mục kết quả của Global TSP. (file chạy là tsp_cities.cc)
-- Cách chạy:
-  make run SOURCE=examples/cpp/ns3/vrp_capacity.cc
-  make run SOURCE=examples/cpp/ns3/tsp_cities.cc
+Sử dụng ORTools trong NS3
+1. Tải binary package của ORTools tại: https://developers.google.com/optimization/install/cpp/linux và cài đặt build tools cho ORTools
+	sudo apt-get -y install build-essential zlib1g-dev
+2. Giải nén file tải về
+3. Thực hiện các lệnh sau để copy thư mục "lib" và "include" của ORTools vào thư mục "/usr/lib" và "/usr/include"
+	cd thư-mục-giải-nén-ortools
+	sudo cp lib/* /usr/lib/gcc/x86_64-linux-gnu/5/
+	sudo cp -rf include/* /usr/local/include
+4. Tải phiên bản ns-3.27 tại: https://www.nsnam.org/releases/ns-3-27/download/
+5. Giải nén file tải về, thư mục chứa waf có đường dẫn là: thư-mục-tải-ns3/ns-allinone-3.27/ns-3.27
+6. Thay wscript của module core và thư mục chứa waf
+	cd thư-mục-github
+	cp core_wscript/wscript thư-mục-chứa-waf/src/core
+	cp waf_wscript/wscript thư-mục-chứa-waf
+7. Cài đặt các gói cần thiết và biên dịch NS3
+	sudo apt-get install gcc g++ python python3
+	cd thư-mục-chứa-waf
+	./waf configure --disable-tests --disable-examples --disable-python
+	./waf
+Các file trong thư mục CodeNs3
+- Các trường hợp có chung 4 file là: macro_param.h, communication.h, misc.h và handle.h
+- Mỗi trường hợp khác nhau ở 2 file là: tên-trường-hợp.cc và kinematic_tên-trường-hợp.h
+- Trường hợp CVRP và Intercell có thêm file vrp_capacity.h để giải bài toán CVRP
