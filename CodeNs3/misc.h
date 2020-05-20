@@ -217,3 +217,18 @@ int IdMin(D a[], int n)
 	}
 	return id;
 }
+template <class D>
+int IdMax(D a[], int n)
+{
+	int id = 0;
+	int max = a[0];
+	for(int i = 1; i < n; i++)
+	{
+		if(a[i] > max)
+		{
+			id = i;
+			max = a[i];
+		}
+	}
+	return id;
+}

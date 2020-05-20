@@ -19,12 +19,9 @@
  * Authors: Tien Pham Van <tien.phamvan1@hust.edu.vn>
  *          Nguyen Pham Van <nguyen.pv152737@sis.hust.edu.vn>
  */
-#include "ns3/core-module.h"
 #include "ns3/network-module.h"
-#include "ns3/mobility-module.h"
 #include "ns3/internet-module.h"
 #include "ns3/aodv-module.h"
-#include "ns3/netanim-module.h"
 #include "ns3/ocb-wifi-mac.h"
 #include "ns3/wifi-80211p-helper.h"
 #include "ns3/wave-mac-helper.h"
@@ -35,13 +32,14 @@
 #include "handle.h"
 using namespace ns3;
 
-extern TypeId tid;
-extern double dataLoad;
+
 extern UAVContainer uav[NUM_CELL];
 extern SensorContainer sensor[NUM_CELL];
 extern GwContainer gw[NUM_CELL];
 extern NodeContainer allNodes[NUM_CELL];
 extern int uavState[NUM_CELL][NUM_UAV];
+TypeId tid = TypeId::LookupByName ("ns3::UdpSocketFactory");
+double dataLoad;
 void SetupCommunication(int cellId);
 void SetupApplication(int cellId);
 void ReceivePacket (Ptr<Socket> socket);

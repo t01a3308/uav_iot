@@ -19,35 +19,18 @@
  * Authors: Tien Pham Van <tien.phamvan1@hust.edu.vn>
  *          Nguyen Pham Van <nguyen.pv152737@sis.hust.edu.vn>
  */
-#include "ns3/core-module.h"
-#include "ns3/network-module.h"
-#include "ns3/mobility-module.h"
-#include "ns3/internet-module.h"
-#include "ns3/aodv-module.h"
-#include "ns3/netanim-module.h"
-#include "ns3/ocb-wifi-mac.h"
-#include "ns3/wifi-80211p-helper.h"
-#include "ns3/wave-mac-helper.h"
-#include "ns3/yans-wifi-helper.h"
-#include <iostream>
-#include <math.h>
+
 /*Added header files*/
 #include "kinematic_iterative.h"
-#include "macro_param.h"
-//#include "communication.h"
 
 using namespace ns3;
-
+int useAnim = 0;
 AnimationInterface *anim = 0;
-TypeId tid = TypeId::LookupByName ("ns3::UdpSocketFactory");
-double X[MAX_NUM_CELL], Y[MAX_NUM_CELL];//cell center 's position
 UAVContainer uav[NUM_CELL];
 SensorContainer sensor[NUM_CELL];
 GwContainer gw[NUM_CELL];
 NodeContainer allNodes[NUM_CELL];
-std::map<Ptr<Node>, double> sensorData[NUM_CELL]; // all data
-
-double dataLoad = 0;
+std::string method = "iterative";
 int main()
 { 
  // LogComponentEnable ("MobilityHelper", LOG_LEVEL_DEBUG);
@@ -81,7 +64,10 @@ int main()
     SetupApplication(i);
     UavSend(i);
   }
-  //anim = new AnimationInterface("animation/iterative.xml");
+  if(useAnim == 1)
+  {
+    anim = new AnimationInterface("animation/iterative.xml");
+  }
   CalculateNumberOfSites();
   AddUtilityPlot();
   NumUAVPlot();

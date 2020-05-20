@@ -20,15 +20,6 @@
  *          Nguyen Pham Van <nguyen.pv152737@sis.hust.edu.vn>
  */
 #include "ns3/core-module.h"
-#include "ns3/network-module.h"
-#include "ns3/mobility-module.h"
-#include "ns3/internet-module.h"
-#include "ns3/aodv-module.h"
-#include "ns3/netanim-module.h"
-#include "ns3/ocb-wifi-mac.h"
-#include "ns3/wifi-80211p-helper.h"
-#include "ns3/wave-mac-helper.h"
-#include "ns3/yans-wifi-helper.h"
 #include <iostream>
 #include <math.h>
 #include <map>
@@ -254,11 +245,15 @@ public:
 	double GetExpectedUtility(int cellId);
 	double GetReverseUtility(int cellId);
 	double GetLength(Vector pos);
+	double GetFlightTime();
 	int GetResource();
 	void Remove(Ptr<SITE> site);
 	void Pop();
+	void Pop_Back();
 	void Print();
 	void Clear();
+	void operator = (SiteList sl);
+
 };
 void SiteList::Add(Ptr<SITE> site)
 {
@@ -344,6 +339,26 @@ double SiteList::GetLength(Vector pos)
 	}
 	return distance;
 }
+double SiteList::GetFlightTime()
+{
+	int n = m_list.size();
+	if(n == 0)
+	{
+		return 0;
+	}
+	Ptr<SITE> s0 = m_list[0];
+	int cellId = s0->GetCellId();
+	Vector pos = Vector(X[cellId], Y[cellId], height);
+	double time = 0;
+	time += CalculateDistance(pos, m_list[0]->GetSitePosition()) / VUAV;
+	time += CalculateDistance(pos, m_list[n-1]->GetSitePosition()) / VUAV;
+	for(int i = 0; i < n - 1; i++)
+	{
+		time += CalculateDistance(m_list[i]->GetSitePosition(), m_list[i+1]->GetSitePosition()) / VUAV;
+		time += m_list[i]->GetVisitedTime();
+	}
+	time += m_list[n-1]->GetVisitedTime();
+}
 int SiteList::GetResource()
 {
 	int rs = 0;
@@ -370,6 +385,10 @@ void SiteList::Pop()
 {
 	m_list.erase(m_list.begin());
 }
+void SiteList::Pop_Back()
+{
+	m_list.pop_back();
+}
 void SiteList::Print()
 {
 	int n = (int)m_list.size();
@@ -382,6 +401,18 @@ void SiteList::Print()
 void SiteList::Clear()
 {
 	m_list.clear();
+}
+void SiteList::operator = (SiteList sl)
+{
+	this->m_list.clear();
+	int n = sl.GetSize();
+	{
+		for(int i = 0; i < n; i++)
+		{
+			Ptr<SITE> s = sl.Get(i);
+			this->m_list.push_back(s);
+		}
+	}
 }
 class UAV: public Node
 {

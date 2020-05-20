@@ -22,7 +22,7 @@
 /*Global parameters*/
 #define NUM_SCENARIO 100
 #define NUM_UAV 5 //per cell
-#define NUM_SENSOR 150 // per cell
+#define NUM_SENSOR 200 // per cell
 #define NUM_GW 1 //per cell
 #define NUM_CELL 7
 #define MAX_NUM_CELL 37
@@ -31,10 +31,10 @@
 #define CELL_RADIUS 1000.0 // m // cell radius
 #define height 20.0
 //
-#define TOTAL_SITE 500
-#define MAX_SITE_PER_CELL 150
+#define TOTAL_SITE 600
+#define MAX_SITE_PER_CELL 200
 #define VUAV 5.0 // m/s
-#define MAX_RESOURCE_PER_UAV 650
+#define MAX_RESOURCE_PER_UAV 600
 //sensor data
 #define MIN_VALUE 50.0
 #define MAX_VALUE 100.0
@@ -44,7 +44,7 @@
 #define UTILITY_FACTOR 2.0
 #define VISITED_TIME_UTILITY_FACTOR 10.0
 #define RESOURCE_FACTOR 1.0
-#define VISITED_TIME_FACTOR 0.3
+#define VISITED_TIME_FACTOR 0.5
 #define MIN_URGENCY 100
 #define MAX_URGENCY 200
 //power 
@@ -57,7 +57,6 @@
 //
 #define PI 3.14159
 //TSP
-#define MAX 4194304// 2^(MAX_SITE_PER_CELL+1)
 // parameters for communication
 // interval to send periodic packets
 #define UAV_INTERVAL 1 // MINUTE
