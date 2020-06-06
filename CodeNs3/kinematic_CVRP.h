@@ -31,7 +31,6 @@ extern GwContainer gw[NUM_CELL];
 extern NodeContainer allNodes[NUM_CELL];
 //
 
-int numSegment[NUM_CELL];
 
 //
 // cvrp variables
@@ -67,7 +66,7 @@ void Execute(int cellId)
   //std::cout<<"execute cell "<<cellId<<std::endl;
   for(int i = 0; i < NUM_UAV; i++)
   {
-    Simulator::Schedule(Seconds(0.01*i), &FindSegment, cellId, uav[cellId].GetUav(i)); 
+    Simulator::Schedule(Seconds(0.01*i+0.01), &FindSegment, cellId, uav[cellId].GetUav(i)); 
   }
 }
 std::vector<std::vector<int>>
@@ -201,7 +200,6 @@ void FindSegment(int cellId, Ptr<UAV> u)
    // std::cout<<"num row = "<<n<<std::endl;
     if(n == 0)
     {
-      numSegment[cellId] = 0;
       return;
     }
     SiteList sl[n];
@@ -218,7 +216,6 @@ void FindSegment(int cellId, Ptr<UAV> u)
        // std::cout<<std::endl;
     }
     sm.clear();
-    numSegment[cellId] = n; 
     int id = 0;
     double maxUti = sl[0].GetExpectedUtility(cellId);
     for(int i = 1; i < n; i++)
@@ -261,11 +258,14 @@ void DoTask(Ptr<UAV> u)
   }
   int uavResource = u -> GetResource();
   if(u -> GetSiteSize() == 0 || uavResource == 0)
-  {
-   // std::cout<<GetNow()<<": cell "<<cellId<<", uav "<<uavId<<" go back"<<std::endl;
+  {    
     if(uavResource == 0)
-    {
+    {     
       FreeSite(u);
+    }
+    else
+    {
+       
     }
     double flightTime = Goto(u, GetPosition(gw[cellId].Get(0)));    
     u -> UpdateFlightTime(flightTime);
@@ -333,6 +333,7 @@ void DoTask(Ptr<UAV> u)
 }
 void NextRound(Ptr<UAV> u)
 {
+  uavState[u->GetCellId()][u->GetUavId()] = 0;
   if(SiteCheck(u->GetCellId()) == 0)
   {
     u -> SetResource(MAX_RESOURCE_PER_UAV);
@@ -344,7 +345,7 @@ void CheckCellFinish(Ptr<UAV> u)
   int cellId = u -> GetCellId();
   int uavId = u -> GetUavId();
  // std::cout<<GetNow()<<": next round cell "<<cellId<<", uav "<<uavId<<std::endl;
-  uavState[cellId][uavId] = 0;
+  uavState[cellId][uavId] = 2;
   if(IsFinish(cellId))
   {
     if(IsFinish())

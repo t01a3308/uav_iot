@@ -32,6 +32,7 @@ extern GwContainer gw[NUM_CELL];
 extern NodeContainer allNodes[NUM_CELL];
 extern std::string method;
 extern void FindSegment(int, Ptr<UAV>);
+extern void DoTask(Ptr<UAV>);
 extern void Execute(int);
 extern void InterCell();
 double X[MAX_NUM_CELL], Y[MAX_NUM_CELL];//cell center 's position
@@ -51,6 +52,7 @@ double cumulativeUtility = 0;
 double cumulativeBenefit = 0;
 double cumulativeData = 0;
 double uti = 0;
+//
 //
 Gnuplot2dDataset p[NUM_UAV], p1[NUM_UAV];
 Gnuplot2dDataset utidts, uavdts;
@@ -212,6 +214,7 @@ void SetupGwPosition(int cellId)
 }
 void CalculateNumberOfSites()
 {
+
   // std::cout<<"Calculate number of sites for each cell"<<std::endl;
   for(int i = 1; i < NUM_CELL; i++)
   {
@@ -261,17 +264,24 @@ void ChangeSiteState(int cellId, int siteId, int state)
     return;
   }
   siteState[cellId][siteId] = state;
-  if(method == "intercell")
+  //if(method == "intercell" || method == "CVRP")
   {
-  	if(state == 1 && (GetNow() > Tbegin + 0.5))
+  	if(state == 1 && (GetNow() > Tbegin + 10))
   	{
    // std::cout<<GetNow()<<" newsite cell "<<cellId<<" site "<<siteId<<std::endl;
     	for(int i = 0; i < NUM_UAV; i++)
     	{
       	if(uavState[cellId][i] == 0)
       	{
-       // std::cout<<"dr uav "<<i<<std::endl;
-        	FindSegment(cellId, uav[cellId].GetUav(i));
+          if(method == "iterative")
+          {
+            DoTask(uav[cellId].GetUav(i));
+           //std::cout<<"dr uav "<<i<<std::endl;
+          }
+          else
+          {
+        	  FindSegment(cellId, uav[cellId].GetUav(i));
+          }
         	break;
       	}
     	}
@@ -473,6 +483,7 @@ void EndScenario()
     EventId ev = event[i];
     if(!Simulator::IsExpired(ev))
     {
+     // std::cout<<"cancel "<<std::endl;
       Simulator::Cancel(ev);
     }
   }

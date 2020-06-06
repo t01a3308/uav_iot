@@ -31,10 +31,10 @@
 #define CELL_RADIUS 1000.0 // m // cell radius
 #define height 20.0
 //
-#define TOTAL_SITE 600
+#define TOTAL_SITE 30
 #define MAX_SITE_PER_CELL 200
 #define VUAV 5.0 // m/s
-#define MAX_RESOURCE_PER_UAV 600
+#define MAX_RESOURCE_PER_UAV 500
 //sensor data
 #define MIN_VALUE 50.0
 #define MAX_VALUE 100.0
@@ -52,8 +52,8 @@
 #define FLYING 350.0
 #define HANDLING 400.0
 //
-#define MIN_TIME 10.0
-#define MAX_TIME 600.0 // site appear time
+#define MIN_TIME 2000.0
+#define MAX_TIME 3900.0 // site appear time
 //
 #define PI 3.14159
 //TSP

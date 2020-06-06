@@ -250,6 +250,7 @@ void DoTask(Ptr<UAV> u)
 }
 void NextRound(Ptr<UAV> u)
 {
+  uavState[u->GetCellId()][u->GetUavId()] = 0;
   if(SiteCheck(u->GetCellId()) == 0)
   {
     u -> SetResource(MAX_RESOURCE_PER_UAV);
@@ -261,7 +262,7 @@ void CheckCellFinish(Ptr<UAV> u)
   int cellId = u -> GetCellId();
   int uavId = u -> GetUavId();
  // std::cout<<GetNow()<<": next round cell "<<cellId<<", uav "<<uavId<<std::endl;
-  uavState[cellId][uavId] = 0;
+  uavState[cellId][uavId] = 2;
   if(IsFinish(cellId))
   {
     if(IsFinish())
