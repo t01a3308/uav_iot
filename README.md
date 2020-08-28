@@ -6,7 +6,7 @@ Sử dụng ORTools trong NS3
 3. Copy thư viện và header của ORTOOLS
 	- Chạy lệnh sau để tìm thư mục ưu tiên khi tìm kiếm library của gcc:
 	
-		gcc -print-search-dirs | sed '/^lib/b 1;d;:1;s,/[^/.][^/]*/\.\./,/,;t 1;s,:[^=]*=,:;,;s,;,;  ,g' | tr \; \\012
+		gcc -print-search-dirs | sed '/^lib/b 1;d;:1;s,/[^/.][^/]*/\.\./,/,;t 1;s,:[^=]*=,:;,;s,;,;  ,g'
 	- Kết quả trả về nhiều thư mục khác nhau, tìm thư mục đầu tiên, giả sử thư mục đó là "/usr/lib/gcc/x86_64-linux-gnu/5/" thì thực hiện lệnh sau để copy thư viện của ORTools:
 	
 		cd thư-mục-giải-nén-ortools
