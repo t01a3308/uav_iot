@@ -21,6 +21,9 @@ Sử dụng ORTools trong NS3
 	cd thư-mục-chứa-waf
 	./waf configure --disable-tests --disable-examples --disable-python
 	./waf
+	
+8. Mô tả kịch bản và tham số mô phỏng: https://sites.google.com/site/teamemnetlab411/project-updates-1/ketquamophongsmartcity
+
 Các file trong thư mục CodeNs3
 - Các trường hợp có chung 5 file là: "macro_param.h", "communication.h", "misc.h", "scenario.h" và "handle.h"
 - Mỗi trường hợp khác nhau ở 2 file là: "tên-trường-hợp.cc" và "kinematic_tên-trường-hợp.h"
