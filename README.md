@@ -12,9 +12,7 @@ Nếu sử dụng phiên bản Ubuntu 16 thì tải file or-tools_ubuntu-16.04_v
 		gcc -print-search-dirs | sed '/^lib/b 1;d;:1;s,/[^/.][^/]*/\.\./,/,;t 1;s,:[^=]*=,:;,;s,;,;  ,g'
 	- Kết quả trả về nhiều thư mục khác nhau, tìm thư mục đầu tiên, giả sử thư mục đó là "/usr/lib/gcc/x86_64-linux-gnu/5/" thì thực hiện lệnh sau để copy thư viện của ORTools:
 	
-		cd thư-mục-github
-
-		cd ORTools
+		cd thư-mục-ORTools
 		
 		sudo cp lib/* /usr/lib/gcc/x86_64-linux-gnu/5/
 	
@@ -47,10 +45,13 @@ Nếu sử dụng phiên bản Ubuntu 16 thì tải file or-tools_ubuntu-16.04_v
 8. Các file trong thư mục CodeNs3
 - Các trường hợp có chung 5 file là: "macro_param.h", "communication.h", "misc.h", "scenario.h" và "handle.h"
 - Mỗi trường hợp khác nhau ở 2 file là: "tên-trường-hợp.cc" và "kinematic_tên-trường-hợp.h"
-- Trường hợp CVRP và Intercell có thêm file "vrp_capacity.h" để giải bài toán CVRP
+- Trường hợp CVRP và intercell có thêm file "vrp_capacity.h" để giải bài toán CVRP
+- Để chạy những trường hợp này, ta 
 - Trong file macro_param.h, ta sẽ thay đổi 2 tham số:
 	+ TOTAL_SITE: từ 300 đến 700
 	+ MAX_RESOURCE_PER_UAV: 250 đến 600 
+- intercell.cc là nội dung của project này
+	./waf --run scratch/intercell
 9. Thư mục Matlab_Excel
 
 File excel là thống kê kết quả chạy NS-3, sau đó bảng số liệu được dùng để vẽ đồ thị trong Matlab
